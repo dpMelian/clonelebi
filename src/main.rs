@@ -1,5 +1,6 @@
 mod cpu;
 mod memory;
+mod tests;
 
 use std::fs;
 
@@ -31,8 +32,8 @@ fn main() {
   memory.load_rom_into_memory(&rom);
 
   // Power up setup
-  cpu.registers.pc = 0x100;
-  cpu.registers.sp = 0xfffe;
+  cpu.registers.pc = 0x0100;
+  cpu.registers.sp = 0xFFFE;
 
   while cpu.registers.pc <= 0x8000 {
     cpu.run_instruction(&mut memory);
