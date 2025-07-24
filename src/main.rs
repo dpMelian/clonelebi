@@ -4,9 +4,7 @@ mod tests;
 
 use std::fs;
 
-use cpu::registers::Registers;
 use cpu::cpu::Cpu;
-
 use memory::memory::Memory;
 
 fn load_rom_file() -> Vec<u8> {
@@ -23,11 +21,8 @@ fn load_rom_file() -> Vec<u8> {
 fn main() {
   let rom = load_rom_file();
 
-  let mut cpu = Cpu {
-    registers: Registers::new(),
-  };
-
-  let mut memory = Memory::new();
+  let mut cpu: Cpu = Cpu::new();
+  let mut memory: Memory = Memory::new();
 
   memory.load_rom_into_memory(&rom);
 
