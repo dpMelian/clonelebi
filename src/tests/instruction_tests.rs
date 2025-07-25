@@ -39,3 +39,22 @@ fn test_inc() {
 
   assert_eq!(cpu.registers.a, 0x14);
 }
+
+#[test]
+fn test_ld_r1_r2() {
+  let mut cpu = Cpu {
+    registers: Registers::new(),
+    optable: Optable::new(),
+  };
+
+  let mut memory = Memory::new();
+  memory.write(0x0000, 0x78);
+
+  cpu.registers.a = 0x13;
+  cpu.registers.b = 0x14;
+  cpu.registers.pc = 0x00;
+
+  cpu.run_instruction(&mut memory);
+
+  assert_eq!(cpu.registers.a, 0x14);
+}
