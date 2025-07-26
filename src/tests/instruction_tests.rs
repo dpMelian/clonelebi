@@ -9,6 +9,7 @@ fn test_cpl() {
   let mut cpu = Cpu {
     registers: Registers::new(),
     optable: Optable::new(),
+    cycles: 0
   };
 
   let mut memory = Memory::new();
@@ -27,6 +28,7 @@ fn test_inc() {
   let mut cpu = Cpu {
     registers: Registers::new(),
     optable: Optable::new(),
+    cycles: 0
   };
 
   let mut memory = Memory::new();
@@ -45,6 +47,7 @@ fn test_ld_r1_r2() {
   let mut cpu = Cpu {
     registers: Registers::new(),
     optable: Optable::new(),
+    cycles: 0
   };
 
   let mut memory = Memory::new();

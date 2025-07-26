@@ -32,5 +32,6 @@ fn main() {
 
   while cpu.registers.pc <= 0x8000 {
     cpu.run_instruction(&mut memory);
+    println!("{:X}", cpu.registers.pc);
   }
 }
