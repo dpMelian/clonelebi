@@ -46,11 +46,15 @@ impl Cpu {
       Instruction::LdMemHLFromR(r) => Self::ld_mem_hl_from_r(self, memory, *r),
       Instruction::LdNNn(n) => Self::ld_n_nn(self, memory, *n),
       Instruction::LdNnN(nn) => Self::ld_nn_n(self, memory, *nn),
-      Instruction::LdNnR(r) => Self::ld_nn_r(self, memory, *r),
+      Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
+      Instruction::LdNnA => Self::ld_nn_a(self, memory),
       Instruction::LdR1R2(r1, r2) => Self::ld_r1_r2(self, memory, *r1, *r2),
       Instruction::LdRFromMemHL(r) => Self::ld_r_from_mem_hl(self, memory, *r),
       Instruction::LdRN(r) => Self::ld_r_n(self, memory, *r),
       Instruction::Nop => Self::nop(self, memory),
+      Instruction::OrN => Self::or_n(self, memory),
+      Instruction::OrR(r) => Self::or_r(self, memory, *r),
+      Instruction::PushRR(r) => Self::push_rr(self, memory, *r),
       Instruction::Ret => Self::ret(self, memory),
       Instruction::Rst(jump_address) => Self::rst_n(self, memory, *jump_address),
       Instruction::Stop => Self::stop(self, memory),
@@ -86,19 +90,19 @@ impl Cpu {
     self.registers.pc += 2;
   }
 
-  fn ld_nn_r(&mut self, memory: &mut Memory, r: Target) {
+  fn ld_rr_a(&mut self, _memory: &mut Memory, r: RegisterPair) {
+    self.registers.set_pair(r, self.registers.a as u16);
+
+    self.registers.pc += 3;
+  }
+
+  fn ld_nn_a(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     
     let low = memory.read(pc + 1);
     let high = memory.read(pc + 2);
-    
-    if let Target::SingleU8(register) = r {
-      memory.write(((high as u16) << 8) | (low as u16), self.registers[register]);
-    }
 
-    if let Target::SingleU16(register) = r {
-
-    }
+    memory.write(((high as u16) << 8) | (low as u16), self.registers.a);
 
     self.registers.pc += 3;
   }
@@ -242,6 +246,19 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn or_n(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    self.registers.a = self.registers.a | memory.read(pc + 1);
+
+    self.registers.pc += 2;
+  }
+
+  fn or_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    self.registers.a = self.registers.a | self.registers[r];
+    
+    self.registers.pc += 1;
+  }
+
   fn di(&mut self, _memory: &mut Memory) {
     // TODO
     self.registers.pc += 1;
@@ -269,5 +286,17 @@ impl Cpu {
   fn stop(&mut self, _memory: &mut Memory) {
     // TODO
     self.registers.pc += 2;
+  }
+
+  fn push_rr(&mut self, memory: &mut Memory, r: RegisterPair) {
+    let sp = self.registers.sp;
+    let value = self.registers.get_pair(r).to_be_bytes();
+
+    self.registers.sp -= 1;
+    memory.write(sp - 1, value[0]);
+    self.registers.sp -= 1;
+    memory.write(sp - 2, value[1]);
+
+    self.registers.pc += 1;
   }
 }
