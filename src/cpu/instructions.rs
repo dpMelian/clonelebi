@@ -7,10 +7,18 @@ use cpu::registers::Target;
 pub enum RstAddress {
   Rst00 = 0x0000,
   Rst08 = 0x0008,
+  Rst10 = 0x0010,
+  Rst18 = 0x0018,
+  Rst20 = 0x0020,
+  Rst28 = 0x0028,
+  Rst30 = 0x0030,
   Rst38 = 0x0038
 }
 
 pub enum Instruction {
+  AndN,
+  AndR(RegisterU8),
+  Call,
   Cpl,
   Dec(RegisterU8),
   Di,
@@ -18,13 +26,20 @@ pub enum Instruction {
   IncNn(Target),
   Invalid,
   JpNN,
+  Jr,
+  LdhNR(RegisterU8),
   LdMemHLFromR(RegisterU8),
   LdNnN(RegisterU8),
   LdNNn(Target),
+  LdNnR(Target),
   LdR1R2(RegisterU8, RegisterU8),
   LdRFromMemHL(RegisterU8),
+  LdRN(RegisterU8),
   Nop,
+  Ret,
   Rst(RstAddress),
+  Stop,
+  SubN,
   Unimplemented,
   Xor(RegisterU8)
 }
@@ -46,11 +61,13 @@ impl Optable {
     table[0x0C] = Instruction::Inc(RegisterU8::C);
     table[0x0D] = Instruction::Dec(RegisterU8::C);
     table[0x0E] = Instruction::LdNnN(RegisterU8::C);
+    table[0x10] = Instruction::Stop;
     table[0x11] = Instruction::LdNNn(Target::Pair(RegisterPair::DE));
     table[0x13] = Instruction::IncNn(Target::Pair(RegisterPair::DE));
     table[0x14] = Instruction::Inc(RegisterU8::D);
     table[0x15] = Instruction::Dec(RegisterU8::D);
     table[0x16] = Instruction::LdNnN(RegisterU8::D);
+    table[0x18] = Instruction::Jr;
     table[0x1C] = Instruction::Inc(RegisterU8::E);
     table[0x1D] = Instruction::Dec(RegisterU8::E);
     table[0x1E] = Instruction::LdNnN(RegisterU8::E);
@@ -63,10 +80,11 @@ impl Optable {
     table[0x2D] = Instruction::Dec(RegisterU8::L);
     table[0x2E] = Instruction::LdNnN(RegisterU8::L);
     table[0x2F] = Instruction::Cpl;
-    table[0x31] = Instruction::LdNNn(Target::Single(RegisterU16::SP));
-    table[0x33] = Instruction::IncNn(Target::Single(RegisterU16::SP));
+    table[0x31] = Instruction::LdNNn(Target::SingleU16(RegisterU16::SP));
+    table[0x33] = Instruction::IncNn(Target::SingleU16(RegisterU16::SP));
     table[0x3C] = Instruction::Inc(RegisterU8::A);
     table[0x3D] = Instruction::Dec(RegisterU8::A);
+    table[0x3E] = Instruction::LdRN(RegisterU8::A);
     table[0x40] = Instruction::LdR1R2(RegisterU8::B, RegisterU8::B);
     table[0x41] = Instruction::LdR1R2(RegisterU8::B, RegisterU8::C);
     table[0x42] = Instruction::LdR1R2(RegisterU8::B, RegisterU8::D);
@@ -130,25 +148,43 @@ impl Optable {
     table[0x7D] = Instruction::LdR1R2(RegisterU8::A, RegisterU8::L);
     table[0x7E] = Instruction::LdRFromMemHL(RegisterU8::A);
     table[0x7F] = Instruction::LdR1R2(RegisterU8::A, RegisterU8::A);
+    table[0xA0] = Instruction::AndR(RegisterU8::B);
+    table[0xA1] = Instruction::AndR(RegisterU8::C);
+    table[0xA2] = Instruction::AndR(RegisterU8::D);
+    table[0xA3] = Instruction::AndR(RegisterU8::E);
+    table[0xA4] = Instruction::AndR(RegisterU8::H);
+    table[0xA5] = Instruction::AndR(RegisterU8::L);
+    table[0xA7] = Instruction::AndR(RegisterU8::A);
     table[0xA8] = Instruction::Xor(RegisterU8::B);
     table[0xA9] = Instruction::Xor(RegisterU8::C);
     table[0xAA] = Instruction::Xor(RegisterU8::D);
-    table[0xAB] = Instruction::Xor(RegisterU8::H);
-    table[0xAC] = Instruction::Xor(RegisterU8::L);
+    table[0xAB] = Instruction::Xor(RegisterU8::E);
+    table[0xAC] = Instruction::Xor(RegisterU8::H);
+    table[0xAD] = Instruction::Xor(RegisterU8::L);
     table[0xAF] = Instruction::Xor(RegisterU8::A);
     table[0xC3] = Instruction::JpNN;
     table[0xC7] = Instruction::Rst(RstAddress::Rst00);
+    table[0xC9] = Instruction::Ret;
+    table[0xCD] = Instruction::Call;
     table[0xCF] = Instruction::Rst(RstAddress::Rst08);
     table[0xD3] = Instruction::Invalid;
+    table[0xD6] = Instruction::SubN;
+    table[0xD7] = Instruction::Rst(RstAddress::Rst10);
     table[0xDB] = Instruction::Invalid;
     table[0xDD] = Instruction::Invalid;
+    table[0xDF] = Instruction::Rst(RstAddress::Rst18);
+    table[0xE0] = Instruction::LdhNR(RegisterU8::A);
     table[0xE3] = Instruction::Invalid;
     table[0xE4] = Instruction::Invalid;
+    table[0xE7] = Instruction::Rst(RstAddress::Rst20);
+    table[0xEA] = Instruction::LdNnR(Target::SingleU8(RegisterU8::A));
     table[0xEB] = Instruction::Invalid;
     table[0xEC] = Instruction::Invalid;
     table[0xED] = Instruction::Invalid;
+    table[0xEF] = Instruction::Rst(RstAddress::Rst28);
     table[0xF3] = Instruction::Di;
     table[0xF4] = Instruction::Invalid;
+    table[0xF7] = Instruction::Rst(RstAddress::Rst30);
     table[0xFC] = Instruction::Invalid;
     table[0xFD] = Instruction::Invalid;
     table[0xFF] = Instruction::Rst(RstAddress::Rst38);
