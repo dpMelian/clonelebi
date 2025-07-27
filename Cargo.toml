@@ -3,3 +3,4 @@ name = "clonelebi"
 version = "0.0.1"
 
 [dependencies]
+minifb = "0.28.0"
