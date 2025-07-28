@@ -2,11 +2,13 @@ use cpu::instructions::CycleTable;
 use cpu::instructions::Instruction;
 use cpu::instructions::Optable;
 use cpu::instructions::RstAddress;
+use cpu::registers::Flag;
 use cpu::registers::RegisterPair;
 use cpu::registers::Registers;
 use cpu::registers::RegisterU8;
 use cpu::registers::Target;
 use memory::memory::Memory;
+
 
 pub const MASTER_CLOCK_SPEED: i32 = 4194304; // Hz
 
@@ -35,13 +37,14 @@ impl Cpu {
       Instruction::AndR(r) => Self::and_r(self, memory, *r),
       Instruction::Call => Self::call(self, memory),
       Instruction::Cpl => Self::cpl(self, memory),
-      Instruction::Dec(r1) => Self::dec_n(self, memory, *r1),
+      Instruction::Dec(r) => Self::dec_n(self, memory, *r),
       Instruction::Di => Self::di(self, memory),
-      Instruction::Inc(r1) => Self::inc_n(self, memory, *r1),
+      Instruction::Inc(r) => Self::inc_n(self, memory, *r),
       Instruction::IncNn(r1) => Self::inc_nn(self, memory, *r1),
       Instruction::Invalid => Self::invalid_instruction(self, memory),
       Instruction::JpNN => Self::jp_nn(self, memory),
       Instruction::Jr => Self::jr(self, memory),
+      Instruction::JrCCE(cc) => Self::jr_cc_e(self, memory, *cc),
       Instruction::LdhNR(r) => Self::ldh_n_r(self, memory, *r),
       Instruction::LdMemHLFromR(r) => Self::ld_mem_hl_from_r(self, memory, *r),
       Instruction::LdNNn(n) => Self::ld_n_nn(self, memory, *n),
@@ -186,6 +189,25 @@ impl Cpu {
     self.registers.pc = destination_address;
   }
 
+  fn jr_cc_e(&mut self, memory: &mut Memory, cc: Flag) {
+    let pc = self.registers.pc;
+    let mut flag = false;
+  
+    match cc {
+      Flag::Z => flag = self.registers.get_z_flag(),
+      Flag::N => flag = self.registers.get_n_flag(),
+      Flag::H => flag = self.registers.get_h_flag(),
+      Flag::C => flag = self.registers.get_c_flag(),
+    }
+
+    if flag {
+      let e = memory.read(pc + 1);
+      self.registers.pc = (pc + 2) + (e as u16);
+    } else {
+      self.registers.pc += 2;
+    }
+  }
+
   fn cpl(&mut self, _memory: &mut Memory) {
     self.registers.a = !self.registers.a;
     self.registers.pc += 1;
@@ -203,8 +225,26 @@ impl Cpu {
     self.registers.pc = jump_address as u16;
   }
 
-  fn inc_n(&mut self, _memory: &mut Memory, r1: RegisterU8) {
-    self.registers[r1] += 1;
+  fn inc_n(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let result = self.registers[r] + 1;
+    let carry_per_bit = self.registers[r] + 1;
+  
+    self.registers[r] = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+
+    if ((carry_per_bit >> 3) & 1) == 1 {
+      self.registers.set_h_flag();
+    } else {
+      self.registers.unset_h_flag();
+    }
+  
     self.registers.pc += 1;
   }
 
@@ -220,9 +260,26 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
-  fn dec_n(&mut self, _memory: &mut Memory, r1: RegisterU8) {
-    if self.registers[r1] > 0 {
-      self.registers[r1] -= 1;
+  fn dec_n(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let result = self.registers[r] - 1;
+    let carry_per_bit = self.registers[r] - 1;
+  
+    if self.registers[r] > 0 {
+      self.registers[r] = result;
+
+      if result == 0 {
+        self.registers.set_z_flag();
+      } else {
+        self.registers.unset_z_flag();
+      }
+
+      self.registers.set_n_flag();
+
+      if ((carry_per_bit >> 3) & 1) == 1 {
+        self.registers.set_h_flag();
+      } else {
+        self.registers.unset_h_flag();
+      }
     }
 
     self.registers.pc += 1;

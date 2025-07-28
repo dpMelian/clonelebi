@@ -18,6 +18,14 @@ pub enum RegisterU16 {
   PC,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Flag {
+  Z,
+  N,
+  H,
+  C
+}
+
 pub struct Registers {
   pub a: u8, // Accumulator
   pub b: u8,
@@ -133,5 +141,85 @@ impl Registers {
         self.l = split_u8_values[1];
       },
     }
+  }
+
+  pub fn get_z_flag(&self) -> bool {
+    let flag = self.f;
+
+    let mask = 0b1000_0000u8;
+
+    ((flag & mask) >> 7) != 0
+  }
+
+  pub fn get_n_flag(&self) -> bool {
+    let flag = self.f;
+
+    let mask = 0b0100_0000u8;
+
+    ((flag & mask) >> 6) != 0
+  }
+
+  pub fn get_h_flag(&self) -> bool {
+    let flag = self.f;
+
+    let mask = 0b0010_0000u8;
+
+    ((flag & mask) >> 5) != 0
+  }
+
+  pub fn get_c_flag(&self) -> bool {
+    let flag = self.f;
+
+    let mask = 0b0001_0000u8;
+
+    ((flag & mask) >> 4) != 0
+  }
+
+  pub fn set_z_flag(&mut self) {
+    self.f |= 0b1000_0000;
+  }
+
+  pub fn set_n_flag(&mut self) {
+    self.f |= 0b0100_0000;
+  }
+
+  pub fn set_h_flag(&mut self) {
+    self.f |= 0b0010_0000;
+  }
+
+  pub fn set_c_flag(&mut self) {
+    self.f |= 0b0001_0000;
+  }
+
+  pub fn unset_z_flag(&mut self) {
+    self.f &= 0b1000_0000;
+  }
+
+  pub fn unset_n_flag(&mut self) {
+    self.f &= 0b0100_0000;
+  }
+
+  pub fn unset_h_flag(&mut self) {
+    self.f &= 0b0010_0000;
+  }
+
+  pub fn unset_c_flag(&mut self) {
+    self.f &= 0b0001_0000;
+  }
+
+  pub fn toggle_z_flag(&mut self) {
+    self.f ^= 0b1000_0000;
+  }
+
+  pub fn toggle_n_flag(&mut self) {
+    self.f ^= 0b0100_0000;
+  }
+
+  pub fn toggle_h_flag(&mut self) {
+    self.f ^= 0b0010_0000;
+  }
+
+  pub fn toggle_c_flag(&mut self) {
+    self.f ^= 0b0001_0000;
   }
 }

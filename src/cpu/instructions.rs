@@ -1,7 +1,9 @@
+use cpu::registers::Flag;
 use cpu::registers::RegisterU8;
 use cpu::registers::RegisterU16;
 use cpu::registers::RegisterPair;
 use cpu::registers::Target;
+
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum RstAddress {
@@ -27,6 +29,7 @@ pub enum Instruction {
   Invalid,
   JpNN,
   Jr,
+  JrCCE(Flag),
   LdhNR(RegisterU8),
   LdMemHLFromR(RegisterU8),
   LdNnN(RegisterU8),
@@ -82,12 +85,14 @@ impl Optable {
     table[0x24] = Instruction::Inc(RegisterU8::H);
     table[0x25] = Instruction::Dec(RegisterU8::H);
     table[0x26] = Instruction::LdNnN(RegisterU8::H);
+    table[0x28] = Instruction::JrCCE(Flag::Z);
     table[0x2C] = Instruction::Inc(RegisterU8::L);
     table[0x2D] = Instruction::Dec(RegisterU8::L);
     table[0x2E] = Instruction::LdNnN(RegisterU8::L);
     table[0x2F] = Instruction::Cpl;
     table[0x31] = Instruction::LdNNn(Target::SingleU16(RegisterU16::SP));
     table[0x33] = Instruction::IncNn(Target::SingleU16(RegisterU16::SP));
+    table[0x38] = Instruction::JrCCE(Flag::C);
     table[0x3C] = Instruction::Inc(RegisterU8::A);
     table[0x3D] = Instruction::Dec(RegisterU8::A);
     table[0x3E] = Instruction::LdRN(RegisterU8::A);
