@@ -18,6 +18,7 @@ pub enum RstAddress {
 }
 
 pub enum Instruction {
+  AddR(RegisterU8),
   AndN,
   AndR(RegisterU8),
   Call,
@@ -159,6 +160,13 @@ impl Optable {
     table[0x7D] = Instruction::LdR1R2(RegisterU8::A, RegisterU8::L);
     table[0x7E] = Instruction::LdRFromMemHL(RegisterU8::A);
     table[0x7F] = Instruction::LdR1R2(RegisterU8::A, RegisterU8::A);
+    table[0x80] = Instruction::AddR(RegisterU8::B);
+    table[0x81] = Instruction::AddR(RegisterU8::C);
+    table[0x82] = Instruction::AddR(RegisterU8::D);
+    table[0x83] = Instruction::AddR(RegisterU8::E);
+    table[0x84] = Instruction::AddR(RegisterU8::H);
+    table[0x85] = Instruction::AddR(RegisterU8::L);
+    table[0x87] = Instruction::AddR(RegisterU8::A);
     table[0xA0] = Instruction::AndR(RegisterU8::B);
     table[0xA1] = Instruction::AndR(RegisterU8::C);
     table[0xA2] = Instruction::AndR(RegisterU8::D);
