@@ -32,15 +32,17 @@ pub enum Instruction {
   JpNN,
   Jr,
   JrCCE(Flag),
+  LdAHLD,
+  LdHLDA,
   LdhNR(RegisterU8),
   LdMemHLFromR(RegisterU8),
+  LdNnA,
   LdNnN(RegisterU8),
   LdNNn(Target),
-  LdRRA(RegisterPair),
-  LdNnA,
   LdR1R2(RegisterU8, RegisterU8),
   LdRFromMemHL(RegisterU8),
   LdRN(RegisterU8),
+  LdRRA(RegisterPair),
   Nop,
   OrN,
   OrR(RegisterU8),
@@ -48,8 +50,8 @@ pub enum Instruction {
   Ret,
   Rst(RstAddress),
   Stop,
-  SubR(RegisterU8),
   SubN,
+  SubR(RegisterU8),
   Unimplemented,
   Xor(RegisterU8)
 }
@@ -94,8 +96,10 @@ impl Optable {
     table[0x2E] = Instruction::LdNnN(RegisterU8::L);
     table[0x2F] = Instruction::Cpl;
     table[0x31] = Instruction::LdNNn(Target::SingleU16(RegisterU16::SP));
+    table[0x32] = Instruction::LdHLDA;
     table[0x33] = Instruction::IncNn(Target::SingleU16(RegisterU16::SP));
     table[0x38] = Instruction::JrCCE(Flag::C);
+    table[0x3A] = Instruction::LdAHLD;
     table[0x3C] = Instruction::Inc(RegisterU8::A);
     table[0x3D] = Instruction::Dec(RegisterU8::A);
     table[0x3E] = Instruction::LdRN(RegisterU8::A);

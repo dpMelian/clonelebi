@@ -47,6 +47,8 @@ impl Cpu {
       Instruction::JpNN => Self::jp_nn(self, memory),
       Instruction::Jr => Self::jr(self, memory),
       Instruction::JrCCE(cc) => Self::jr_cc_e(self, memory, *cc),
+      Instruction::LdAHLD => Self::ld_a_hld(self, memory),
+      Instruction::LdHLDA => Self::ld_hld_a(self, memory),
       Instruction::LdhNR(r) => Self::ldh_n_r(self, memory, *r),
       Instruction::LdMemHLFromR(r) => Self::ld_mem_hl_from_r(self, memory, *r),
       Instruction::LdNnA => Self::ld_nn_a(self, memory),
@@ -66,7 +68,7 @@ impl Cpu {
       Instruction::SubN => Self::sub_n(self, memory),
       Instruction::SubR(r) => Self::sub_r(self, memory, *r),
       Instruction::Unimplemented => Self::unimplemented_instruction(self, memory),
-      Instruction::Xor(r1) => Self::xor_n(self, memory, *r1)
+      Instruction::Xor(r) => Self::xor_r(self, memory, *r)
     }
 
     self.cycles += self.cycles_table.cycle_table[opcode as usize];
@@ -132,6 +134,22 @@ impl Cpu {
 
   fn ld_mem_hl_from_r(&mut self, memory: &mut Memory, r: RegisterU8) {
     memory.write(self.registers.get_pair(RegisterPair::HL), self.registers[r]);
+
+    self.registers.pc += 1;
+  }
+
+  fn ld_hld_a(&mut self, memory: &mut Memory) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    memory.write(hl, self.registers.a);
+    self.registers.set_pair(RegisterPair::HL, hl - 1);
+
+    self.registers.pc += 1;
+  }
+
+  fn ld_a_hld(&mut self, memory: &mut Memory) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    self.registers.a = memory.read(hl);
+    self.registers.set_pair(RegisterPair::HL, hl - 1);
 
     self.registers.pc += 1;
   }
@@ -346,8 +364,20 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
-  fn xor_n(&mut self, _memory: &mut Memory, r1: RegisterU8) {
-    self.registers.a = self.registers[r1] ^ self.registers.a;
+  fn xor_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let result = self.registers[r] ^ self.registers.a;
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+    self.registers.unset_c_flag();
+
     self.registers.pc += 1;
   }
 
@@ -359,7 +389,18 @@ impl Cpu {
   }
 
   fn and_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
-    self.registers.a = self.registers.a & self.registers[r];
+    let result = self.registers.a & self.registers[r];
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.set_h_flag();
+    self.registers.unset_c_flag();
 
     self.registers.pc += 1;
   }
