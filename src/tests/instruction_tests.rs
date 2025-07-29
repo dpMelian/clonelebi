@@ -130,3 +130,20 @@ fn test_call() {
 
   assert_eq!(setup.cpu.registers.pc, 0xEFAB);
 }
+
+#[test]
+fn test_ccf() {
+  let mut setup = Setup::new();
+
+  setup.memory.write(0x0000, 0x3F);
+  setup.memory.write(0x0001, 0x3F);
+
+  setup.cpu.registers.pc = 0;
+  setup.cpu.registers.unset_c_flag();
+
+  setup.cpu.run_instruction(&mut setup.memory);
+  assert_eq!(setup.cpu.registers.f, 0b_0001_0000);
+
+  setup.cpu.run_instruction(&mut setup.memory);
+  assert_eq!(setup.cpu.registers.f, 0b_0000_0000);
+}

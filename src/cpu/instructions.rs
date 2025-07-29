@@ -22,6 +22,7 @@ pub enum Instruction {
   AndN,
   AndR(RegisterU8),
   Call,
+  Ccf,
   Cpl,
   Dec(RegisterU8),
   Di,
@@ -47,6 +48,7 @@ pub enum Instruction {
   Ret,
   Rst(RstAddress),
   Stop,
+  SubR(RegisterU8),
   SubN,
   Unimplemented,
   Xor(RegisterU8)
@@ -97,6 +99,7 @@ impl Optable {
     table[0x3C] = Instruction::Inc(RegisterU8::A);
     table[0x3D] = Instruction::Dec(RegisterU8::A);
     table[0x3E] = Instruction::LdRN(RegisterU8::A);
+    table[0x3F] = Instruction::Ccf;
     table[0x40] = Instruction::LdR1R2(RegisterU8::B, RegisterU8::B);
     table[0x41] = Instruction::LdR1R2(RegisterU8::B, RegisterU8::C);
     table[0x42] = Instruction::LdR1R2(RegisterU8::B, RegisterU8::D);
@@ -167,6 +170,13 @@ impl Optable {
     table[0x84] = Instruction::AddR(RegisterU8::H);
     table[0x85] = Instruction::AddR(RegisterU8::L);
     table[0x87] = Instruction::AddR(RegisterU8::A);
+    table[0x90] = Instruction::SubR(RegisterU8::B);
+    table[0x91] = Instruction::SubR(RegisterU8::C);
+    table[0x92] = Instruction::SubR(RegisterU8::D);
+    table[0x93] = Instruction::SubR(RegisterU8::E);
+    table[0x94] = Instruction::SubR(RegisterU8::H);
+    table[0x95] = Instruction::SubR(RegisterU8::L);
+    table[0x97] = Instruction::SubR(RegisterU8::A);
     table[0xA0] = Instruction::AndR(RegisterU8::B);
     table[0xA1] = Instruction::AndR(RegisterU8::C);
     table[0xA2] = Instruction::AndR(RegisterU8::D);

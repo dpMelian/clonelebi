@@ -37,6 +37,7 @@ impl Cpu {
       Instruction::AndN => Self::and_n(self, memory),
       Instruction::AndR(r) => Self::and_r(self, memory, *r),
       Instruction::Call => Self::call(self, memory),
+      Instruction::Ccf => Self::ccf(self, memory),
       Instruction::Cpl => Self::cpl(self, memory),
       Instruction::Dec(r) => Self::dec_n(self, memory, *r),
       Instruction::Di => Self::di(self, memory),
@@ -48,13 +49,13 @@ impl Cpu {
       Instruction::JrCCE(cc) => Self::jr_cc_e(self, memory, *cc),
       Instruction::LdhNR(r) => Self::ldh_n_r(self, memory, *r),
       Instruction::LdMemHLFromR(r) => Self::ld_mem_hl_from_r(self, memory, *r),
+      Instruction::LdNnA => Self::ld_nn_a(self, memory),
       Instruction::LdNNn(n) => Self::ld_n_nn(self, memory, *n),
       Instruction::LdNnN(nn) => Self::ld_nn_n(self, memory, *nn),
-      Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
-      Instruction::LdNnA => Self::ld_nn_a(self, memory),
       Instruction::LdR1R2(r1, r2) => Self::ld_r1_r2(self, memory, *r1, *r2),
       Instruction::LdRFromMemHL(r) => Self::ld_r_from_mem_hl(self, memory, *r),
       Instruction::LdRN(r) => Self::ld_r_n(self, memory, *r),
+      Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
       Instruction::Nop => Self::nop(self, memory),
       Instruction::OrN => Self::or_n(self, memory),
       Instruction::OrR(r) => Self::or_r(self, memory, *r),
@@ -63,6 +64,7 @@ impl Cpu {
       Instruction::Rst(jump_address) => Self::rst_n(self, memory, *jump_address),
       Instruction::Stop => Self::stop(self, memory),
       Instruction::SubN => Self::sub_n(self, memory),
+      Instruction::SubR(r) => Self::sub_r(self, memory, *r),
       Instruction::Unimplemented => Self::unimplemented_instruction(self, memory),
       Instruction::Xor(r1) => Self::xor_n(self, memory, *r1)
     }
@@ -315,6 +317,35 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn sub_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let result = self.registers.a - self.registers[r];
+    let carry_per_bit = self.registers.a - self.registers[r];
+
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.set_n_flag();
+
+    if ((carry_per_bit >> 3) & 1) == 1 {
+      self.registers.set_h_flag();
+    } else {
+      self.registers.unset_h_flag();
+    }
+
+    if ((carry_per_bit >> 7) & 1) == 1 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+    
+    self.registers.pc += 1;
+  }
+
   fn xor_n(&mut self, _memory: &mut Memory, r1: RegisterU8) {
     self.registers.a = self.registers[r1] ^ self.registers.a;
     self.registers.pc += 1;
@@ -383,6 +414,21 @@ impl Cpu {
     memory.write(sp - 1, value[0]);
     self.registers.sp -= 1;
     memory.write(sp - 2, value[1]);
+
+    self.registers.pc += 1;
+  }
+
+  fn ccf(&mut self, _memory: &mut Memory) {
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+
+    let c_flag = self.registers.get_c_flag();
+
+    if c_flag {
+      self.registers.unset_c_flag();
+    } else {
+      self.registers.set_c_flag();
+    }
 
     self.registers.pc += 1;
   }
