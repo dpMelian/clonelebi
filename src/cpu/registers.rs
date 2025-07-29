@@ -176,50 +176,43 @@ impl Registers {
   }
 
   pub fn set_z_flag(&mut self) {
-    self.f |= 0b1000_0000;
+    self.f = Self::set_bit(self.f, 7, true);
   }
 
   pub fn set_n_flag(&mut self) {
-    self.f |= 0b0100_0000;
+    self.f = Self::set_bit(self.f, 6, true);
   }
 
   pub fn set_h_flag(&mut self) {
-    self.f |= 0b0010_0000;
+    self.f = Self::set_bit(self.f, 5, true);
   }
 
   pub fn set_c_flag(&mut self) {
-    self.f |= 0b0001_0000;
+    self.f = Self::set_bit(self.f, 4, true);
   }
 
   pub fn unset_z_flag(&mut self) {
-    self.f &= 0b1000_0000;
+    self.f = Self::set_bit(self.f, 7, false);
   }
 
   pub fn unset_n_flag(&mut self) {
-    self.f &= 0b0100_0000;
+    self.f = Self::set_bit(self.f, 6, false);
   }
 
   pub fn unset_h_flag(&mut self) {
-    self.f &= 0b0010_0000;
+    self.f = Self::set_bit(self.f, 5, false);
   }
 
   pub fn unset_c_flag(&mut self) {
-    self.f &= 0b0001_0000;
+    self.f = Self::set_bit(self.f, 4, false);
   }
 
-  pub fn toggle_z_flag(&mut self) {
-    self.f ^= 0b1000_0000;
-  }
-
-  pub fn toggle_n_flag(&mut self) {
-    self.f ^= 0b0100_0000;
-  }
-
-  pub fn toggle_h_flag(&mut self) {
-    self.f ^= 0b0010_0000;
-  }
-
-  pub fn toggle_c_flag(&mut self) {
-    self.f ^= 0b0001_0000;
+  pub fn set_bit(x: u8, idx: usize, b: bool) -> u8 {
+    let flag = 1 << idx;
+    if b {
+        x | flag
+    } else {
+        x & !flag
+    }
   }
 }
