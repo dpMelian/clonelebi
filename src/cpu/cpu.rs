@@ -64,6 +64,7 @@ impl Cpu {
       Instruction::PushRR(r) => Self::push_rr(self, memory, *r),
       Instruction::Ret => Self::ret(self, memory),
       Instruction::Rst(jump_address) => Self::rst_n(self, memory, *jump_address),
+      Instruction::Scf => Self::scf(self, memory),
       Instruction::Stop => Self::stop(self, memory),
       Instruction::SubN => Self::sub_n(self, memory),
       Instruction::SubR(r) => Self::sub_r(self, memory, *r),
@@ -231,6 +232,18 @@ impl Cpu {
 
   fn cpl(&mut self, _memory: &mut Memory) {
     self.registers.a = !self.registers.a;
+  
+    self.registers.set_n_flag();
+    self.registers.set_h_flag();
+  
+    self.registers.pc += 1;
+  }
+
+  fn scf(&mut self, _memory: &mut Memory) {
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+    self.registers.set_c_flag();
+
     self.registers.pc += 1;
   }
 
@@ -339,7 +352,9 @@ impl Cpu {
     let result = self.registers.a - self.registers[r];
     let carry_per_bit = self.registers.a - self.registers[r];
 
-    self.registers.a = result;
+    if self.registers.a > 0 {
+      self.registers.a = result;
+    }
 
     if result == 0 {
       self.registers.set_z_flag();
@@ -383,7 +398,19 @@ impl Cpu {
 
   fn and_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
-    self.registers.a = self.registers.a & memory.read(pc + 1);
+    let result = self.registers.a & memory.read(pc + 1);
+
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.set_h_flag();
+    self.registers.unset_c_flag();
 
     self.registers.pc += 2;
   }
@@ -407,13 +434,37 @@ impl Cpu {
 
   fn or_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
-    self.registers.a = self.registers.a | memory.read(pc + 1);
+    let result = self.registers.a | memory.read(pc + 1);
+  
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+    self.registers.unset_c_flag();
 
     self.registers.pc += 2;
   }
 
   fn or_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
-    self.registers.a = self.registers.a | self.registers[r];
+    let result = self.registers.a | self.registers[r];
+
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+    self.registers.unset_c_flag();
     
     self.registers.pc += 1;
   }
@@ -436,9 +487,33 @@ impl Cpu {
 
   fn sub_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
+    let result = self.registers.a - memory.read(pc + 1);
+    let carry_per_bit = self.registers.a - memory.read(pc + 1);
+  
     if self.registers.a > 0 {
-      self.registers.a = self.registers.a - memory.read(pc + 1);
+      self.registers.a = result;
     }
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.set_n_flag();
+
+    if ((carry_per_bit >> 3) & 1) == 1 {
+      self.registers.set_h_flag();
+    } else {
+      self.registers.unset_h_flag();
+    }
+
+    if ((carry_per_bit >> 7) & 1) == 1 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+  
     self.registers.pc += 1;
   }
 

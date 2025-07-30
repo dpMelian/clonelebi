@@ -49,6 +49,7 @@ pub enum Instruction {
   PushRR(RegisterPair),
   Ret,
   Rst(RstAddress),
+  Scf,
   Stop,
   SubN,
   SubR(RegisterU8),
@@ -98,6 +99,7 @@ impl Optable {
     table[0x31] = Instruction::LdNNn(Target::SingleU16(RegisterU16::SP));
     table[0x32] = Instruction::LdHLDA;
     table[0x33] = Instruction::IncNn(Target::SingleU16(RegisterU16::SP));
+    table[0x37] = Instruction::Scf;
     table[0x38] = Instruction::JrCCE(Flag::C);
     table[0x3A] = Instruction::LdAHLD;
     table[0x3C] = Instruction::Inc(RegisterU8::A);
