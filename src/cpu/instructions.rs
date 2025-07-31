@@ -31,7 +31,7 @@ pub enum Instruction {
   Invalid,
   JpNN,
   Jr,
-  JrCCE(Flag),
+  JrCCE(Flag, bool),
   LdAHLD,
   LdHLDA,
   LdhNR(RegisterU8),
@@ -86,21 +86,23 @@ impl Optable {
     table[0x1C] = Instruction::Inc(RegisterU8::E);
     table[0x1D] = Instruction::Dec(RegisterU8::E);
     table[0x1E] = Instruction::LdNnN(RegisterU8::E);
+    table[0x20] = Instruction::JrCCE(Flag::Z, false);
     table[0x21] = Instruction::LdNNn(Target::Pair(RegisterPair::HL));
     table[0x23] = Instruction::IncNn(Target::Pair(RegisterPair::HL));
     table[0x24] = Instruction::Inc(RegisterU8::H);
     table[0x25] = Instruction::Dec(RegisterU8::H);
     table[0x26] = Instruction::LdNnN(RegisterU8::H);
-    table[0x28] = Instruction::JrCCE(Flag::Z);
+    table[0x28] = Instruction::JrCCE(Flag::Z, true);
     table[0x2C] = Instruction::Inc(RegisterU8::L);
     table[0x2D] = Instruction::Dec(RegisterU8::L);
     table[0x2E] = Instruction::LdNnN(RegisterU8::L);
     table[0x2F] = Instruction::Cpl;
+    table[0x30] = Instruction::JrCCE(Flag::C, false);
     table[0x31] = Instruction::LdNNn(Target::SingleU16(RegisterU16::SP));
     table[0x32] = Instruction::LdHLDA;
     table[0x33] = Instruction::IncNn(Target::SingleU16(RegisterU16::SP));
     table[0x37] = Instruction::Scf;
-    table[0x38] = Instruction::JrCCE(Flag::C);
+    table[0x38] = Instruction::JrCCE(Flag::C, true);
     table[0x3A] = Instruction::LdAHLD;
     table[0x3C] = Instruction::Inc(RegisterU8::A);
     table[0x3D] = Instruction::Dec(RegisterU8::A);
