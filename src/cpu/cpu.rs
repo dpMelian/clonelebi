@@ -9,7 +9,6 @@ use cpu::registers::RegisterU8;
 use cpu::registers::Target;
 use memory::memory::Memory;
 
-
 pub const MASTER_CLOCK_SPEED: i32 = 4194304; // Hz
 
 pub struct Cpu {
@@ -71,6 +70,7 @@ impl Cpu {
       Instruction::Ret => Self::ret(self, memory),
       Instruction::Rra => Self::rra(self, memory),
       Instruction::Rst(jump_address) => Self::rst_n(self, memory, *jump_address),
+      Instruction::SbcR(r) => Self::sbc_r(self, memory, *r),
       Instruction::Scf => Self::scf(self, memory),
       Instruction::Stop => Self::stop(self, memory),
       Instruction::SubN => Self::sub_n(self, memory),
@@ -468,6 +468,44 @@ impl Cpu {
       self.registers.unset_c_flag();
     }
     
+    self.registers.pc += 1;
+  }
+
+  fn sbc_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let c_flag = self.registers.get_c_flag();
+    let result;
+    let carry_per_bit;
+
+    if c_flag {
+      result = self.registers.a.wrapping_sub(self.registers[r] - 1);
+      carry_per_bit = self.registers.a.wrapping_sub(self.registers[r] - 1);
+    } else {
+      result = self.registers.a.wrapping_sub(self.registers[r]);
+      carry_per_bit = self.registers.a.wrapping_sub(self.registers[r]);
+    }
+
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.set_n_flag();
+
+    if ((carry_per_bit >> 3) & 1) == 1 {
+      self.registers.set_h_flag();
+    } else {
+      self.registers.unset_h_flag();
+    }
+
+    if ((carry_per_bit >> 7) & 1) == 1 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+
     self.registers.pc += 1;
   }
 

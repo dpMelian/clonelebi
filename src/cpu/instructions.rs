@@ -56,6 +56,7 @@ pub enum Instruction {
   Ret,
   Rra,
   Rst(RstAddress),
+  SbcR(RegisterU8),
   Scf,
   Stop,
   SubN,
@@ -201,6 +202,13 @@ impl Optable {
     table[0x94] = Instruction::SubR(RegisterU8::H);
     table[0x95] = Instruction::SubR(RegisterU8::L);
     table[0x97] = Instruction::SubR(RegisterU8::A);
+    table[0x98] = Instruction::SbcR(RegisterU8::B);
+    table[0x99] = Instruction::SbcR(RegisterU8::C);
+    table[0x9A] = Instruction::SbcR(RegisterU8::D);
+    table[0x9B] = Instruction::SbcR(RegisterU8::E);
+    table[0x9C] = Instruction::SbcR(RegisterU8::H);
+    table[0x9D] = Instruction::SbcR(RegisterU8::L);
+    table[0x9F] = Instruction::SbcR(RegisterU8::A);
     table[0xA0] = Instruction::AndR(RegisterU8::B);
     table[0xA1] = Instruction::AndR(RegisterU8::C);
     table[0xA2] = Instruction::AndR(RegisterU8::D);
