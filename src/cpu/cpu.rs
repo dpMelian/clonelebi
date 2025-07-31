@@ -33,6 +33,7 @@ impl Cpu {
     let opcode = memory.read(self.registers.pc);
 
     match &self.optable.optable[opcode as usize] {
+      Instruction::AdcR(r) => Self::adc_r(self, memory, *r),
       Instruction::AddN => Self::add_n(self, memory),
       Instruction::AddR(r) => Self::add_r(self, memory, *r),
       Instruction::AndN => Self::and_n(self, memory),
@@ -401,6 +402,44 @@ impl Cpu {
     }
 
     self.registers.pc += 2;
+  }
+
+  fn adc_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let c_flag = self.registers.get_c_flag();
+    let result;
+    let carry_per_bit;
+
+    if c_flag {
+      result = self.registers.a.wrapping_add(self.registers[r] + 1);
+      carry_per_bit = self.registers.a.wrapping_add(self.registers[r] + 1);
+    } else {
+      result = self.registers.a.wrapping_add(self.registers[r]);
+      carry_per_bit = self.registers.a.wrapping_add(self.registers[r]);
+    }
+
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+
+    if ((carry_per_bit >> 3) & 1) == 1 {
+      self.registers.set_h_flag();
+    } else {
+      self.registers.unset_h_flag();
+    }
+
+    if ((carry_per_bit >> 7) & 1) == 1 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+
+    self.registers.pc += 1;
   }
 
   fn sub_r(&mut self, _memory: &mut Memory, r: RegisterU8) {

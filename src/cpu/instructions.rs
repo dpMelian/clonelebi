@@ -18,6 +18,7 @@ pub enum RstAddress {
 }
 
 pub enum Instruction {
+  AdcR(RegisterU8),
   AddN,
   AddR(RegisterU8),
   AndN,
@@ -186,6 +187,13 @@ impl Optable {
     table[0x84] = Instruction::AddR(RegisterU8::H);
     table[0x85] = Instruction::AddR(RegisterU8::L);
     table[0x87] = Instruction::AddR(RegisterU8::A);
+    table[0x88] = Instruction::AdcR(RegisterU8::B);
+    table[0x89] = Instruction::AdcR(RegisterU8::C);
+    table[0x8A] = Instruction::AdcR(RegisterU8::D);
+    table[0x8B] = Instruction::AdcR(RegisterU8::E);
+    table[0x8C] = Instruction::AdcR(RegisterU8::H);
+    table[0x8D] = Instruction::AdcR(RegisterU8::L);
+    table[0x8F] = Instruction::AdcR(RegisterU8::A);
     table[0x90] = Instruction::SubR(RegisterU8::B);
     table[0x91] = Instruction::SubR(RegisterU8::C);
     table[0x92] = Instruction::SubR(RegisterU8::D);
@@ -220,6 +228,7 @@ impl Optable {
     table[0xBB] = Instruction::CpR(RegisterU8::E);
     table[0xBC] = Instruction::CpR(RegisterU8::H);
     table[0xBD] = Instruction::CpR(RegisterU8::L);
+    table[0xBF] = Instruction::CpR(RegisterU8::A);
     table[0xC3] = Instruction::JpNN;
     table[0xC5] = Instruction::PushRR(RegisterPair::BC);
     table[0xC6] = Instruction::AddN;
