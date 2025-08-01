@@ -1,6 +1,7 @@
 use cpu::instructions::CycleTable;
 use cpu::instructions::Optable;
 use cpu::registers::Registers;
+use cpu::registers::RegisterPair;
 use cpu::cpu::Cpu;
 use memory::memory::Memory;
 
@@ -146,4 +147,34 @@ fn test_ccf() {
 
   setup.cpu.run_instruction(&mut setup.memory);
   assert_eq!(setup.cpu.registers.f, 0b_0000_0000);
+}
+
+#[test]
+fn test_jr() {
+  let mut setup = Setup::new();
+
+  setup.memory.write(0x0010, 0x18);
+  setup.memory.write(0x0011, 0x13);
+
+  setup.cpu.registers.pc = 0x0010;
+
+  setup.cpu.run_instruction(&mut setup.memory);
+
+  assert_eq!(setup.cpu.registers.pc, 0x23);
+}
+
+#[test]
+fn test_ld_hl_n() {
+  let mut setup = Setup::new();
+
+  setup.memory.write(0x0000, 0x36);
+  setup.memory.write(0x0001, 0x19);
+
+  setup.cpu.registers.pc = 0;
+  setup.cpu.registers.h = 0x13;
+  setup.cpu.registers.l = 0x31;
+
+  setup.cpu.run_instruction(&mut setup.memory);
+
+  assert_eq!(setup.memory.read(setup.cpu.registers.get_pair(RegisterPair::HL)), 0x19);
 }
