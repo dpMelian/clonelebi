@@ -19,6 +19,7 @@ pub enum RstAddress {
 
 pub enum Instruction {
   AdcR(RegisterU8),
+  AddHLRR(Target),
   AddN,
   AddR(RegisterU8),
   AndN,
@@ -38,13 +39,15 @@ pub enum Instruction {
   Jr,
   JrCCE(Flag, bool),
   LdAHLD,
-  LdHLDA,
   LdhAN,
+  LdHLDA,
+  LdHLN,
   LdhNR(RegisterU8),
   LdMemHLFromR(RegisterU8),
   LdNnA,
   LdNnN(RegisterU8),
   LdNNn(Target),
+  LdNnSP,
   LdR1R2(RegisterU8, RegisterU8),
   LdRFromMemHL(RegisterU8),
   LdRN(RegisterU8),
@@ -54,6 +57,8 @@ pub enum Instruction {
   OrR(RegisterU8),
   PushRR(RegisterPair),
   Ret,
+  Rla,
+  Rlca,
   Rra,
   Rst(RstAddress),
   SbcR(RegisterU8),
@@ -80,6 +85,9 @@ impl Optable {
     table[0x04] = Instruction::Inc(RegisterU8::B);
     table[0x05] = Instruction::Dec(RegisterU8::B);
     table[0x06] = Instruction::LdNnN(RegisterU8::B);
+    table[0x07] = Instruction::Rlca;
+    table[0x08] = Instruction::LdNnSP;
+    table[0x09] = Instruction::AddHLRR(Target::Pair(RegisterPair::BC));
     table[0x0C] = Instruction::Inc(RegisterU8::C);
     table[0x0D] = Instruction::Dec(RegisterU8::C);
     table[0x0E] = Instruction::LdNnN(RegisterU8::C);
@@ -90,7 +98,9 @@ impl Optable {
     table[0x14] = Instruction::Inc(RegisterU8::D);
     table[0x15] = Instruction::Dec(RegisterU8::D);
     table[0x16] = Instruction::LdNnN(RegisterU8::D);
+    table[0x17] = Instruction::Rla;
     table[0x18] = Instruction::Jr;
+    table[0x19] = Instruction::AddHLRR(Target::Pair(RegisterPair::DE));
     table[0x1C] = Instruction::Inc(RegisterU8::E);
     table[0x1D] = Instruction::Dec(RegisterU8::E);
     table[0x1E] = Instruction::LdNnN(RegisterU8::E);
@@ -102,6 +112,7 @@ impl Optable {
     table[0x25] = Instruction::Dec(RegisterU8::H);
     table[0x26] = Instruction::LdNnN(RegisterU8::H);
     table[0x28] = Instruction::JrCCE(Flag::Z, true);
+    table[0x29] = Instruction::AddHLRR(Target::Pair(RegisterPair::HL));
     table[0x2C] = Instruction::Inc(RegisterU8::L);
     table[0x2D] = Instruction::Dec(RegisterU8::L);
     table[0x2E] = Instruction::LdNnN(RegisterU8::L);
@@ -110,8 +121,10 @@ impl Optable {
     table[0x31] = Instruction::LdNNn(Target::SingleU16(RegisterU16::SP));
     table[0x32] = Instruction::LdHLDA;
     table[0x33] = Instruction::IncNn(Target::SingleU16(RegisterU16::SP));
+    table[0x36] = Instruction::LdHLN;
     table[0x37] = Instruction::Scf;
     table[0x38] = Instruction::JrCCE(Flag::C, true);
+    table[0x39] = Instruction::AddHLRR(Target::SingleU16(RegisterU16::SP));
     table[0x3A] = Instruction::LdAHLD;
     table[0x3C] = Instruction::Inc(RegisterU8::A);
     table[0x3D] = Instruction::Dec(RegisterU8::A);

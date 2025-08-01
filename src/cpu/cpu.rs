@@ -33,14 +33,15 @@ impl Cpu {
 
     match &self.optable.optable[opcode as usize] {
       Instruction::AdcR(r) => Self::adc_r(self, memory, *r),
+      Instruction::AddHLRR(rr) => Self::add_hl_rr(self, memory, *rr),
       Instruction::AddN => Self::add_n(self, memory),
       Instruction::AddR(r) => Self::add_r(self, memory, *r),
       Instruction::AndN => Self::and_n(self, memory),
       Instruction::AndR(r) => Self::and_r(self, memory, *r),
       Instruction::Call => Self::call(self, memory),
       Instruction::Ccf => Self::ccf(self, memory),
-      Instruction::CpN => Self::cp_n(self, memory),
       Instruction::Cpl => Self::cpl(self, memory),
+      Instruction::CpN => Self::cp_n(self, memory),
       Instruction::CpR(r) => Self::cp_r(self, memory, *r),
       Instruction::Dec(r) => Self::dec_n(self, memory, *r),
       Instruction::Di => Self::di(self, memory),
@@ -52,13 +53,15 @@ impl Cpu {
       Instruction::Jr => Self::jr(self, memory),
       Instruction::JrCCE(cc, set) => Self::jr_cc_e(self, memory, *cc, *set),
       Instruction::LdAHLD => Self::ld_a_hld(self, memory),
-      Instruction::LdHLDA => Self::ld_hld_a(self, memory),
       Instruction::LdhAN => Self::ldh_a_n(self, memory),
+      Instruction::LdHLDA => Self::ld_hld_a(self, memory),
+      Instruction::LdHLN => Self::ld_hl_n(self, memory),
       Instruction::LdhNR(r) => Self::ldh_n_r(self, memory, *r),
       Instruction::LdMemHLFromR(r) => Self::ld_mem_hl_from_r(self, memory, *r),
       Instruction::LdNnA => Self::ld_nn_a(self, memory),
       Instruction::LdNNn(n) => Self::ld_n_nn(self, memory, *n),
       Instruction::LdNnN(nn) => Self::ld_nn_n(self, memory, *nn),
+      Instruction::LdNnSP => Self::ld_nn_sp(self, memory),
       Instruction::LdR1R2(r1, r2) => Self::ld_r1_r2(self, memory, *r1, *r2),
       Instruction::LdRFromMemHL(r) => Self::ld_r_from_mem_hl(self, memory, *r),
       Instruction::LdRN(r) => Self::ld_r_n(self, memory, *r),
@@ -68,6 +71,8 @@ impl Cpu {
       Instruction::OrR(r) => Self::or_r(self, memory, *r),
       Instruction::PushRR(r) => Self::push_rr(self, memory, *r),
       Instruction::Ret => Self::ret(self, memory),
+      Instruction::Rla => Self::rla(self, memory),
+      Instruction::Rlca => Self::rlca(self, memory),
       Instruction::Rra => Self::rra(self, memory),
       Instruction::Rst(jump_address) => Self::rst_n(self, memory, *jump_address),
       Instruction::SbcR(r) => Self::sbc_r(self, memory, *r),
@@ -185,6 +190,20 @@ impl Cpu {
     self.registers.pc += 2;
   }
 
+  fn ld_nn_sp(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let low = memory.read(pc + 1);
+    let high = memory.read(pc + 2);
+
+    let nn = (high as u16) << 8 | low as u16;
+    let sp = self.registers.sp.to_le_bytes();
+
+    memory.write(nn, sp[0]);
+    memory.write(nn + 1, sp[1]);
+
+    self.registers.pc += 3;
+  }
+
   fn ldh_a_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let low = memory.read(pc + 1);
@@ -193,6 +212,15 @@ impl Cpu {
     let address = (high as u16) << 8 | low as u16;
 
     self.registers.a = memory.read(address);
+
+    self.registers.pc += 2;
+  }
+
+  fn ld_hl_n(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let n = memory.read(pc + 1);
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), n);
 
     self.registers.pc += 2;
   }
@@ -402,6 +430,41 @@ impl Cpu {
     }
 
     self.registers.pc += 2;
+  }
+
+  fn add_hl_rr(&mut self, _memory: &mut Memory, rr: Target) {
+    let result;
+    let carry_per_bit;
+
+    if let Target::Pair(register_pair) = rr {
+      result = self.registers.get_pair(RegisterPair::HL).wrapping_add(self.registers.get_pair(register_pair));
+    } else {
+      result = self.registers.get_pair(RegisterPair::HL).wrapping_add(self.registers.sp);
+    }
+
+    if let Target::Pair(register_pair) = rr {
+      carry_per_bit = self.registers.get_pair(RegisterPair::HL).wrapping_add(self.registers.get_pair(register_pair));
+    } else {
+      carry_per_bit = self.registers.get_pair(RegisterPair::HL).wrapping_add(self.registers.sp);
+    }
+
+    self.registers.set_pair(RegisterPair::HL, result);
+
+    self.registers.unset_n_flag();
+
+    if ((carry_per_bit >> 11) & 1) == 1 {
+      self.registers.set_h_flag();
+    } else {
+      self.registers.unset_h_flag();
+    }
+
+    if ((carry_per_bit >> 15) & 1) == 1 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+
+    self.registers.pc += 1;
   }
 
   fn adc_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
@@ -695,6 +758,55 @@ impl Cpu {
     self.registers.unset_h_flag();
 
     if b0 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+
+    self.registers.pc += 1;
+  }
+
+  fn rla(&mut self, _memory: &mut Memory) {
+    let b7 = self.registers.a & (1 << 7) != 0;
+    let c_flag = self.registers.get_c_flag();
+
+    self.registers.a = self.registers.a.rotate_left(1);
+    
+    if c_flag {
+      self.registers.a |= 0b0000_0001;
+    } else {
+      self.registers.a &= 0b0000_0001;
+    }
+
+    self.registers.unset_z_flag();
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+
+    if b7 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+
+    self.registers.pc += 1;
+  }
+
+  fn rlca(&mut self, _memory: &mut Memory) {
+    let b7 = self.registers.a & (1 << 7) != 0;
+
+    self.registers.a = self.registers.a.rotate_left(1);
+    
+    if b7 {
+      self.registers.a |= 0b0000_0001;
+    } else {
+      self.registers.a &= 0b0000_0001;
+    }
+
+    self.registers.unset_z_flag();
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+
+    if b7 {
       self.registers.set_c_flag();
     } else {
       self.registers.unset_c_flag();

@@ -102,8 +102,7 @@ pub enum RegisterPair {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Target {
   Pair(RegisterPair),
-  SingleU16(RegisterU16),
-  SingleU8(RegisterU8)
+  SingleU16(RegisterU16)
 }
 
 impl Registers {
