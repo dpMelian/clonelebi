@@ -8,6 +8,10 @@ impl Memory {
   }
 
   pub fn read(&self, address: u16) -> u8 {
+    // Hard-coded for GameBoy Doctor
+    if address == 0xFF44 {
+      self.memory[0x90];
+    }
     self.memory[address as usize]
   }
 
