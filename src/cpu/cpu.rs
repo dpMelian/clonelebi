@@ -259,10 +259,12 @@ impl Cpu {
     let low = memory.read(pc + 1);
     let high = memory.read(pc + 2);
 
+    let split_u8_values = (self.registers.pc + 3).to_le_bytes();
+
     self.registers.sp -= 1;
-    memory.write(sp - 1, high);
+    memory.write(sp - 1, split_u8_values[1]);
     self.registers.sp -= 1;
-    memory.write(sp - 2, low);
+    memory.write(sp - 2, split_u8_values[0]);
 
     self.registers.pc = ((high as u16) << 8) | (low as u16);
   }
