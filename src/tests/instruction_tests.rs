@@ -178,3 +178,20 @@ fn test_ld_hl_n() {
 
   assert_eq!(setup.memory.read(setup.cpu.registers.get_pair(RegisterPair::HL)), 0x19);
 }
+
+#[test]
+fn test_get_half_carry() {
+  let mut setup = Setup::new();
+
+  let mut prev = 0x0F;
+  let mut result = 0x10;
+  let mut half_carry = setup.cpu.get_half_carry(prev, result);
+
+  assert!(half_carry);
+
+  prev = 0x00;
+  result = 0x01;
+  half_carry = setup.cpu.get_half_carry(prev, result);
+
+  assert_eq!(half_carry, false);
+}
