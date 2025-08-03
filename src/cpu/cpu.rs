@@ -149,7 +149,7 @@ impl Cpu {
 
   fn ldh_n_r(&mut self, memory: &mut Memory, r: RegisterU8) {
     let pc = self.registers.pc;
-    let destination_address: u16 = (0xFF00 as u16) + (memory.read(pc + 1) as u16);
+    let destination_address: u16 = ((0xFF as u16) << 8) | (memory.read(pc + 1) as u16);
 
     memory.write(destination_address, self.registers[r]);
 
@@ -173,7 +173,7 @@ impl Cpu {
   fn ld_hld_a(&mut self, memory: &mut Memory) {
     let hl = self.registers.get_pair(RegisterPair::HL);
     memory.write(hl, self.registers.a);
-    self.registers.set_pair(RegisterPair::HL, hl - 1);
+    self.registers.set_pair(RegisterPair::HL, hl.wrapping_sub(1));
 
     self.registers.pc += 1;
   }
@@ -181,7 +181,7 @@ impl Cpu {
   fn ld_a_hld(&mut self, memory: &mut Memory) {
     let hl = self.registers.get_pair(RegisterPair::HL);
     self.registers.a = memory.read(hl);
-    self.registers.set_pair(RegisterPair::HL, hl - 1);
+    self.registers.set_pair(RegisterPair::HL, hl.wrapping_sub(1));
 
     self.registers.pc += 1;
   }
@@ -189,7 +189,7 @@ impl Cpu {
   fn ld_a_hli(&mut self, memory: &mut Memory) {
     let hl = self.registers.get_pair(RegisterPair::HL);
     self.registers.a = memory.read(hl);
-    self.registers.set_pair(RegisterPair::HL, hl + 1);
+    self.registers.set_pair(RegisterPair::HL, hl.wrapping_add(1));
 
     self.registers.pc += 1;
   }
@@ -234,9 +234,8 @@ impl Cpu {
   fn ldh_a_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let low = memory.read(pc + 1);
-    let high = 0xFF;
 
-    let address = (high as u16) << 8 | low as u16;
+    let address = ((0xFF as u16) << 8) | low as u16;
 
     self.registers.a = memory.read(address);
 
@@ -437,7 +436,7 @@ impl Cpu {
 
   fn add_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let prev = self.registers.a;
-    let result = self.registers.a + self.registers[r];
+    let result = self.registers.a.wrapping_add(self.registers[r]);
 
     self.registers.a = result;
 
@@ -545,7 +544,7 @@ impl Cpu {
     let result;
 
     if c_flag {
-      result = self.registers.a.wrapping_add(self.registers[r] + 1);
+      result = self.registers.a.wrapping_add(self.registers[r].wrapping_add(1));
     } else {
       result = self.registers.a.wrapping_add(self.registers[r]);
     }
@@ -618,7 +617,7 @@ impl Cpu {
     let result;
 
     if c_flag {
-      result = self.registers.a.wrapping_sub(self.registers[r] - 1);
+      result = self.registers.a.wrapping_sub(self.registers[r].wrapping_sub(1));
     } else {
       result = self.registers.a.wrapping_sub(self.registers[r]);
     }
@@ -902,7 +901,6 @@ impl Cpu {
   fn cp_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let prev = self.registers.a;
     let result = self.registers.a.wrapping_sub(self.registers[r]);
-    let carry_per_bit = self.registers.a.wrapping_sub(self.registers[r]);
 
     if result == 0 {
       self.registers.set_z_flag();
