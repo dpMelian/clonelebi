@@ -90,16 +90,32 @@ impl Cpu {
     self.cycles += self.cycles_table.cycle_table[opcode as usize];
   }
 
-  pub fn get_half_carry(&mut self, prev: u8, result: u8) -> bool {
-    if ((prev.wrapping_shr(4)) & 1) != ((result.wrapping_shr(4)) & 1) {
+  pub fn get_half_carry(&mut self, a: u8, b: u8) -> bool {
+    if (((a & 0xF).wrapping_add(b & 0xF)) & 0x10) == 0x10 {
       true
     } else {
       false
     }
   }
 
-  pub fn get_carry(&mut self, prev: u8, result: u8) -> bool {
-    if ((prev.wrapping_shr(8)) & 1) != ((result.wrapping_shr(8)) & 1) {
+  pub fn get_half_carry_sub(&mut self, a: u8, b: u8) -> bool {
+    if (((a & 0xF).wrapping_sub(b & 0xF)) & 0x10) == 0x10 {
+      true
+    } else {
+      false
+    }
+  }
+
+  pub fn get_carry(&mut self, a: u8, b: u8) -> bool {
+    if (((a as u16 & 0xFF).wrapping_add(b as u16 & 0xFF)) & 0x100) == 0x100 {
+      true
+    } else {
+      false
+    }
+  }
+
+  pub fn get_carry_sub(&mut self, a: u8, b: u8) -> bool {
+    if (((a as u16 & 0xFF).wrapping_sub(b as u16 & 0xFF)) & 0x100) == 0x100 {
       true
     } else {
       false
@@ -386,7 +402,7 @@ impl Cpu {
 
     self.registers.unset_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry = Self::get_half_carry(self, prev, 1);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -423,7 +439,7 @@ impl Cpu {
 
     self.registers.set_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry = Self::get_half_carry_sub(self, prev, 1);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -448,7 +464,7 @@ impl Cpu {
 
     self.registers.unset_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry = Self::get_half_carry(self, prev, self.registers[r]);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -456,7 +472,7 @@ impl Cpu {
       self.registers.unset_h_flag();
     }
 
-    let carry = Self::get_carry(self, prev, result);
+    let carry = Self::get_carry(self, prev, self.registers[r]);
 
     if carry {
       self.registers.set_c_flag();
@@ -484,7 +500,7 @@ impl Cpu {
 
     self.registers.unset_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry = Self::get_half_carry(self, prev, n);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -492,7 +508,7 @@ impl Cpu {
       self.registers.unset_h_flag();
     }
 
-    let carry = Self::get_carry(self, prev, result);
+    let carry = Self::get_carry(self, prev, n);
 
     if carry {
       self.registers.set_c_flag();
@@ -559,7 +575,13 @@ impl Cpu {
 
     self.registers.unset_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry;
+
+    if c_flag {
+      half_carry = Self::get_half_carry(self, prev, self.registers[r].wrapping_add(1));
+    } else {
+      half_carry = Self::get_half_carry(self, prev, self.registers[r]);
+    }
 
     if half_carry {
       self.registers.set_h_flag();
@@ -567,7 +589,13 @@ impl Cpu {
       self.registers.unset_h_flag();
     }
 
-    let carry = Self::get_carry(self, prev, result);
+    let carry;
+
+    if c_flag {
+      carry = Self::get_carry(self, prev, self.registers[r].wrapping_add(1));
+    } else {
+      carry = Self::get_carry(self, prev, self.registers[r]);
+    }
 
     if carry {
       self.registers.set_c_flag();
@@ -592,7 +620,7 @@ impl Cpu {
 
     self.registers.set_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry = Self::get_half_carry(self, prev, self.registers[r]);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -600,7 +628,7 @@ impl Cpu {
       self.registers.unset_h_flag();
     }
 
-    let carry = Self::get_carry(self, prev, result);
+    let carry = Self::get_carry(self, prev, self.registers[r]);
 
     if carry {
       self.registers.set_c_flag();
@@ -632,7 +660,13 @@ impl Cpu {
 
     self.registers.set_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry;
+
+    if c_flag {
+      half_carry = Self::get_half_carry_sub(self, prev, self.registers[r].wrapping_sub(1));
+    } else {
+      half_carry = Self::get_half_carry_sub(self, prev, self.registers[r]);
+    }
 
     if half_carry {
       self.registers.set_h_flag();
@@ -640,7 +674,13 @@ impl Cpu {
       self.registers.unset_h_flag();
     }
 
-    let carry = Self::get_carry(self, prev, result);
+    let carry;
+
+    if c_flag {
+      carry = Self::get_carry_sub(self, prev, self.registers[r].wrapping_sub(1));
+    } else {
+      carry = Self::get_carry_sub(self, prev, self.registers[r]);
+    }
 
     if carry {
       self.registers.set_c_flag();
@@ -761,7 +801,8 @@ impl Cpu {
     let pc = self.registers.pc;
 
     let prev = self.registers.a;
-    let result = self.registers.a.wrapping_sub(memory.read(pc + 1));
+    let n = memory.read(pc + 1);
+    let result = self.registers.a.wrapping_sub(n);
   
     self.registers.a = result;
 
@@ -773,7 +814,7 @@ impl Cpu {
 
     self.registers.set_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry = Self::get_half_carry_sub(self, prev, n);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -781,7 +822,7 @@ impl Cpu {
       self.registers.unset_h_flag();
     }
 
-    let carry = Self::get_carry(self, prev, result);
+    let carry = Self::get_carry_sub(self, prev, n);
 
     if carry {
       self.registers.set_c_flag();
@@ -910,7 +951,7 @@ impl Cpu {
 
     self.registers.set_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry = Self::get_half_carry_sub(self, prev, self.registers[r]);
     
     if half_carry {
       self.registers.set_h_flag();
@@ -918,7 +959,7 @@ impl Cpu {
       self.registers.unset_h_flag();
     }
 
-    let carry = Self::get_carry(self, prev, result);
+    let carry = Self::get_carry_sub(self, prev, self.registers[r]);
 
     if carry {
       self.registers.set_c_flag();
@@ -943,7 +984,7 @@ impl Cpu {
 
     self.registers.set_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, result);
+    let half_carry = Self::get_half_carry_sub(self, prev, n);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -951,7 +992,7 @@ impl Cpu {
       self.registers.unset_h_flag();
     }
 
-    let carry = Self::get_carry(self, prev, result);
+    let carry = Self::get_carry_sub(self, prev, n);
 
     if carry {
       self.registers.set_c_flag();
