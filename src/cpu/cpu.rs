@@ -55,6 +55,7 @@ impl Cpu {
       Instruction::JrCCE(cc, set) => Self::jr_cc_e(self, memory, *cc, *set),
       Instruction::LdAHLD => Self::ld_a_hld(self, memory),
       Instruction::LdAHLI => Self::ld_a_hli(self, memory),
+      Instruction::LdANn => Self::ld_a_nn(self, memory),
       Instruction::LdhAN => Self::ldh_a_n(self, memory),
       Instruction::LdHLDA => Self::ld_hld_a(self, memory),
       Instruction::LdHLN => Self::ld_hl_n(self, memory),
@@ -159,6 +160,17 @@ impl Cpu {
     let high = memory.read(pc + 2);
 
     memory.write(((high as u16) << 8) | (low as u16), self.registers.a);
+
+    self.registers.pc += 3;
+  }
+
+  fn ld_a_nn(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let low = memory.read(pc + 1);
+    let high = memory.read(pc + 2);
+    let nn = ((high as u16) << 8) | (low as u16);
+
+    self.registers.a = memory.read(nn);
 
     self.registers.pc += 3;
   }

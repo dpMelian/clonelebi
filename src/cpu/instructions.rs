@@ -41,6 +41,7 @@ pub enum Instruction {
   JrCCE(Flag, bool),
   LdAHLD,
   LdAHLI,
+  LdANn,
   LdhAN,
   LdHLDA,
   LdHLN,
@@ -293,6 +294,7 @@ impl Optable {
     table[0xF5] = Instruction::PushRR(RegisterPair::AF);
     table[0xF6] = Instruction::OrN;
     table[0xF7] = Instruction::Rst(RstAddress::Rst30);
+    table[0xFA] = Instruction::LdANn;
     table[0xFC] = Instruction::Invalid;
     table[0xFD] = Instruction::Invalid;
     table[0xFE] = Instruction::CpN;
