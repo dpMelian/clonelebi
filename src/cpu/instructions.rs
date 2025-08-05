@@ -25,6 +25,7 @@ pub enum Instruction {
   AndN,
   AndR(RegisterU8),
   Call,
+  CallCcNn(Flag, bool),
   Ccf,
   Cpl,
   CpN,
@@ -258,21 +259,25 @@ impl Optable {
     table[0xC1] = Instruction::PopRR(RegisterPair::BC);
     table[0xC2] = Instruction::JpCCNN(Flag::Z, false);
     table[0xC3] = Instruction::JpNN;
+    table[0xC4] = Instruction::CallCcNn(Flag::Z, false);
     table[0xC5] = Instruction::PushRR(RegisterPair::BC);
     table[0xC6] = Instruction::AddN;
     table[0xC7] = Instruction::Rst(RstAddress::Rst00);
     table[0xC9] = Instruction::Ret;
     table[0xCA] = Instruction::JpCCNN(Flag::Z, true);
+    table[0xCC] = Instruction::CallCcNn(Flag::Z, true);
     table[0xCD] = Instruction::Call;
     table[0xCF] = Instruction::Rst(RstAddress::Rst08);
     table[0xD1] = Instruction::PopRR(RegisterPair::DE);
     table[0xD2] = Instruction::JpCCNN(Flag::C, false);
     table[0xD3] = Instruction::Invalid;
+    table[0xD4] = Instruction::CallCcNn(Flag::C, false);
     table[0xD5] = Instruction::PushRR(RegisterPair::DE);
     table[0xD6] = Instruction::SubN;
     table[0xD7] = Instruction::Rst(RstAddress::Rst10);
     table[0xDA] = Instruction::JpCCNN(Flag::C, true);
     table[0xDB] = Instruction::Invalid;
+    table[0xDC] = Instruction::CallCcNn(Flag::C, true);
     table[0xDD] = Instruction::Invalid;
     table[0xDF] = Instruction::Rst(RstAddress::Rst18);
     table[0xE0] = Instruction::LdhNR(RegisterU8::A);

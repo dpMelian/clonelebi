@@ -39,6 +39,7 @@ impl Cpu {
       Instruction::AndN => Self::and_n(self, memory),
       Instruction::AndR(r) => Self::and_r(self, memory, *r),
       Instruction::Call => Self::call(self, memory),
+      Instruction::CallCcNn(cc, set ) => Self::call_cc_nn(self, memory, *cc, *set),
       Instruction::Ccf => Self::ccf(self, memory),
       Instruction::Cpl => Self::cpl(self, memory),
       Instruction::CpN => Self::cp_n(self, memory),
@@ -294,6 +295,51 @@ impl Cpu {
     memory.write(sp - 2, split_u8_values[0]);
 
     self.registers.pc = ((high as u16) << 8) | (low as u16);
+  }
+
+  fn call_cc_nn(&mut self, memory: &mut Memory, cc: Flag, set: bool) {
+    let pc = self.registers.pc;
+    let sp = self.registers.sp;
+    let low = memory.read(pc + 1);
+    let high = memory.read(pc + 2);
+    let nn = ((high as u16) << 8) | (low as u16);
+    let split_u8_values = (pc + 3).to_le_bytes();
+    self.registers.pc += 3;
+
+    match cc {
+      Flag::Z => {
+        if set && self.registers.get_z_flag() {
+          self.registers.sp -= 1;
+          memory.write(sp - 1, split_u8_values[1]);
+          self.registers.sp -= 1;
+          memory.write(sp - 2, split_u8_values[0]);
+          self.registers.pc = nn;
+        } else if !set && !self.registers.get_z_flag() {
+          self.registers.sp -= 1;
+          memory.write(sp - 1, split_u8_values[1]);
+          self.registers.sp -= 1;
+          memory.write(sp - 2, split_u8_values[0]);
+          self.registers.pc = nn;
+        }
+      },
+      Flag::C => {
+        if set && self.registers.get_c_flag() {
+          self.registers.sp -= 1;
+          memory.write(sp - 1, split_u8_values[1]);
+          self.registers.sp -= 1;
+          memory.write(sp - 2, split_u8_values[0]);
+          self.registers.pc = nn;
+        } else if !set && !self.registers.get_c_flag() {
+          self.registers.sp -= 1;
+          memory.write(sp - 1, split_u8_values[1]);
+          self.registers.sp -= 1;
+          memory.write(sp - 2, split_u8_values[0]);
+          self.registers.pc = nn;
+        }
+      },
+      Flag::N => panic!("This flag must not be used here"),
+      Flag::H => panic!("This flag must not be used here"),
+    }
   }
 
   fn jp_nn(&mut self, memory: &mut Memory) {

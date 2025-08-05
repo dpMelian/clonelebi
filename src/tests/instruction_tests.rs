@@ -150,7 +150,7 @@ fn test_ccf() {
 }
 
 #[test]
-fn test_jr() {
+fn test_jr_e() {
   let mut setup = Setup::new();
 
   setup.memory.write(0x0010, 0x18);
@@ -160,7 +160,7 @@ fn test_jr() {
 
   setup.cpu.run_instruction(&mut setup.memory);
 
-  assert_eq!(setup.cpu.registers.pc, 0x23);
+  assert_eq!(setup.cpu.registers.pc, 0x25);
 }
 
 #[test]
