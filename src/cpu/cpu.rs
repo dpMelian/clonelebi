@@ -57,6 +57,7 @@ impl Cpu {
       Instruction::LdAHLD => Self::ld_a_hld(self, memory),
       Instruction::LdAHLI => Self::ld_a_hli(self, memory),
       Instruction::LdANn => Self::ld_a_nn(self, memory),
+      Instruction::LdARR(rr) => Self::ld_a_rr(self, memory, *rr),
       Instruction::LdhAN => Self::ldh_a_n(self, memory),
       Instruction::LdHLDA => Self::ld_hld_a(self, memory),
       Instruction::LdHLN => Self::ld_hl_n(self, memory),
@@ -220,6 +221,11 @@ impl Cpu {
     self.registers.a = memory.read(hl);
     self.registers.set_pair(RegisterPair::HL, hl.wrapping_add(1));
 
+    self.registers.pc += 1;
+  }
+
+  fn ld_a_rr(&mut self, memory: &mut Memory, rr: RegisterPair) {
+    self.registers.a = memory.read(self.registers.get_pair(rr));
     self.registers.pc += 1;
   }
 

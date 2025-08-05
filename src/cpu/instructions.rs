@@ -43,6 +43,7 @@ pub enum Instruction {
   LdAHLD,
   LdAHLI,
   LdANn,
+  LdARR(RegisterPair),
   LdhAN,
   LdHLDA,
   LdHLN,
@@ -93,6 +94,7 @@ impl Optable {
     table[0x07] = Instruction::Rlca;
     table[0x08] = Instruction::LdNnSP;
     table[0x09] = Instruction::AddHLRR(Target::Pair(RegisterPair::BC));
+    table[0x0A] = Instruction::LdARR(RegisterPair::BC);
     table[0x0C] = Instruction::IncR(RegisterU8::C);
     table[0x0D] = Instruction::Dec(RegisterU8::C);
     table[0x0E] = Instruction::LdNnN(RegisterU8::C);
@@ -106,6 +108,7 @@ impl Optable {
     table[0x17] = Instruction::Rla;
     table[0x18] = Instruction::JrE;
     table[0x19] = Instruction::AddHLRR(Target::Pair(RegisterPair::DE));
+    table[0x1A] = Instruction::LdARR(RegisterPair::DE);
     table[0x1C] = Instruction::IncR(RegisterU8::E);
     table[0x1D] = Instruction::Dec(RegisterU8::E);
     table[0x1E] = Instruction::LdNnN(RegisterU8::E);
