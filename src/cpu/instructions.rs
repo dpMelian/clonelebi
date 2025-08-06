@@ -33,19 +33,20 @@ pub enum Instruction {
   Dec(RegisterU8),
   Di,
   Halt,
-  IncR(RegisterU8),
   IncNn(Target),
+  IncR(RegisterU8),
   Invalid,
   JpCCNN(Flag, bool),
   JpNN,
-  JrE,
   JrCCE(Flag, bool),
+  JrE,
   LdAHLD,
   LdAHLI,
   LdANn,
   LdARR(RegisterPair),
   LdhAN,
   LdHLDA,
+  LdHLIA,
   LdHLN,
   LdhNR(RegisterU8),
   LdMemHLFromR(RegisterU8),
@@ -57,7 +58,6 @@ pub enum Instruction {
   LdRFromMemHL(RegisterU8),
   LdRN(RegisterU8),
   LdRRA(RegisterPair),
-  LdHLIA,
   Nop,
   OrN,
   OrR(RegisterU8),
@@ -75,6 +75,7 @@ pub enum Instruction {
   SubR(RegisterU8),
   Unimplemented,
   Xor(RegisterU8),
+  XorAN,
   XorHL,
 }
 
@@ -298,6 +299,7 @@ impl Optable {
     table[0xEB] = Instruction::Invalid;
     table[0xEC] = Instruction::Invalid;
     table[0xED] = Instruction::Invalid;
+    table[0xEE] = Instruction::XorAN;
     table[0xEF] = Instruction::Rst(RstAddress::Rst28);
     table[0xF0] = Instruction::LdhAN;
     table[0xF1] = Instruction::PopRR(RegisterPair::AF);

@@ -35,73 +35,77 @@ impl Cpu {
   pub fn run_instruction(&mut self, memory: &mut Memory) {
     let opcode = memory.read(self.registers.pc);
 
-    match &self.optable.optable[opcode as usize] {
-      Instruction::AdcR(r) => Self::adc_r(self, memory, *r),
-      Instruction::AddHLRR(rr) => Self::add_hl_rr(self, memory, *rr),
-      Instruction::AddN => Self::add_n(self, memory),
-      Instruction::AddR(r) => Self::add_r(self, memory, *r),
-      Instruction::AndN => Self::and_n(self, memory),
-      Instruction::AndR(r) => Self::and_r(self, memory, *r),
-      Instruction::Call => Self::call(self, memory),
-      Instruction::CallCcNn(cc, set ) => Self::call_cc_nn(self, memory, *cc, *set),
-      Instruction::Ccf => Self::ccf(self, memory),
-      Instruction::Cpl => Self::cpl(self, memory),
-      Instruction::CpN => Self::cp_n(self, memory),
-      Instruction::CpR(r) => Self::cp_r(self, memory, *r),
-      Instruction::Dec(r) => Self::dec_n(self, memory, *r),
-      Instruction::Di => Self::di(self, memory),
-      Instruction::Halt => Self::halt(self, memory),
-      Instruction::IncR(r) => Self::inc_r(self, memory, *r),
-      Instruction::IncNn(r1) => Self::inc_nn(self, memory, *r1),
-      Instruction::Invalid => Self::invalid_instruction(self, memory),
-      Instruction::JpCCNN(cc, set) => Self::jp_cc_nn(self, memory, *cc, *set),
-      Instruction::JpNN => Self::jp_nn(self, memory),
-      Instruction::JrE => Self::jr_e(self, memory),
-      Instruction::JrCCE(cc, set) => Self::jr_cc_e(self, memory, *cc, *set),
-      Instruction::LdAHLD => Self::ld_a_hld(self, memory),
-      Instruction::LdAHLI => Self::ld_a_hli(self, memory),
-      Instruction::LdANn => Self::ld_a_nn(self, memory),
-      Instruction::LdARR(rr) => Self::ld_a_rr(self, memory, *rr),
-      Instruction::LdhAN => Self::ldh_a_n(self, memory),
-      Instruction::LdHLDA => Self::ld_hld_a(self, memory),
-      Instruction::LdHLN => Self::ld_hl_n(self, memory),
-      Instruction::LdhNR(r) => Self::ldh_n_r(self, memory, *r),
-      Instruction::LdMemHLFromR(r) => Self::ld_mem_hl_from_r(self, memory, *r),
-      Instruction::LdNnA => Self::ld_nn_a(self, memory),
-      Instruction::LdNNn(n) => Self::ld_n_nn(self, memory, *n),
-      Instruction::LdNnN(nn) => Self::ld_nn_n(self, memory, *nn),
-      Instruction::LdNnSP => Self::ld_nn_sp(self, memory),
-      Instruction::LdR1R2(r1, r2) => Self::ld_r1_r2(self, memory, *r1, *r2),
-      Instruction::LdRFromMemHL(r) => Self::ld_r_from_mem_hl(self, memory, *r),
-      Instruction::LdRN(r) => Self::ld_r_n(self, memory, *r),
-      Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
-      Instruction::LdHLIA => Self::ld_hli_a(self, memory),
-      Instruction::Nop => Self::nop(self, memory),
-      Instruction::OrN => Self::or_n(self, memory),
-      Instruction::OrR(r) => Self::or_r(self, memory, *r),
-      Instruction::PopRR(rr) => Self::pop_rr(self, memory, *rr),
-      Instruction::PushRR(r) => Self::push_rr(self, memory, *r),
-      Instruction::Ret => Self::ret(self, memory),
-      Instruction::Rla => Self::rla(self, memory),
-      Instruction::Rlca => Self::rlca(self, memory),
-      Instruction::Rra => Self::rra(self, memory),
-      Instruction::Rst(jump_address) => Self::rst_n(self, memory, *jump_address),
-      Instruction::SbcR(r) => Self::sbc_r(self, memory, *r),
-      Instruction::Scf => Self::scf(self, memory),
-      Instruction::Stop => Self::stop(self, memory),
-      Instruction::SubN => Self::sub_n(self, memory),
-      Instruction::SubR(r) => Self::sub_r(self, memory, *r),
-      Instruction::Unimplemented => Self::unimplemented_instruction(self, memory),
-      Instruction::Xor(r) => Self::xor_r(self, memory, *r),
-      Instruction::XorHL => Self::xor_hl(self, memory),
-    }
-
     if opcode == 0xCB {
-      let cb_opcode = self.registers.pc + 1;
+      let cb_opcode = memory.read(self.registers.pc + 1);
       self.registers.pc += 1;
       match &self.prefixed_optable.prefixed_optable[cb_opcode as usize] {
         PrefixedInstruction::CBRLCR(r) => Self::cb_rlc_r(self, memory, *r),
+        PrefixedInstruction::CBSRLR(r) => Self::cb_srl_r(self, memory, *r),
+        PrefixedInstruction::CBSetBHL(b) => Self::cb_set_b_hl(self, memory, *b),
         PrefixedInstruction::Unimplemented => Self::unimplemented_instruction(self, memory),
+        PrefixedInstruction::CBRRR(r) => Self::cb_rr_r(self, memory, *r),
+      }
+    } else {
+      match &self.optable.optable[opcode as usize] {
+        Instruction::AdcR(r) => Self::adc_r(self, memory, *r),
+        Instruction::AddHLRR(rr) => Self::add_hl_rr(self, memory, *rr),
+        Instruction::AddN => Self::add_n(self, memory),
+        Instruction::AddR(r) => Self::add_r(self, memory, *r),
+        Instruction::AndN => Self::and_n(self, memory),
+        Instruction::AndR(r) => Self::and_r(self, memory, *r),
+        Instruction::Call => Self::call(self, memory),
+        Instruction::CallCcNn(cc, set ) => Self::call_cc_nn(self, memory, *cc, *set),
+        Instruction::Ccf => Self::ccf(self, memory),
+        Instruction::Cpl => Self::cpl(self, memory),
+        Instruction::CpN => Self::cp_n(self, memory),
+        Instruction::CpR(r) => Self::cp_r(self, memory, *r),
+        Instruction::Dec(r) => Self::dec_n(self, memory, *r),
+        Instruction::Di => Self::di(self, memory),
+        Instruction::Halt => Self::halt(self, memory),
+        Instruction::IncR(r) => Self::inc_r(self, memory, *r),
+        Instruction::IncNn(r1) => Self::inc_nn(self, memory, *r1),
+        Instruction::Invalid => Self::invalid_instruction(self, memory),
+        Instruction::JpCCNN(cc, set) => Self::jp_cc_nn(self, memory, *cc, *set),
+        Instruction::JpNN => Self::jp_nn(self, memory),
+        Instruction::JrE => Self::jr_e(self, memory),
+        Instruction::JrCCE(cc, set) => Self::jr_cc_e(self, memory, *cc, *set),
+        Instruction::LdAHLD => Self::ld_a_hld(self, memory),
+        Instruction::LdAHLI => Self::ld_a_hli(self, memory),
+        Instruction::LdANn => Self::ld_a_nn(self, memory),
+        Instruction::LdARR(rr) => Self::ld_a_rr(self, memory, *rr),
+        Instruction::LdhAN => Self::ldh_a_n(self, memory),
+        Instruction::LdHLDA => Self::ld_hld_a(self, memory),
+        Instruction::LdHLN => Self::ld_hl_n(self, memory),
+        Instruction::LdhNR(r) => Self::ldh_n_r(self, memory, *r),
+        Instruction::LdMemHLFromR(r) => Self::ld_mem_hl_from_r(self, memory, *r),
+        Instruction::LdNnA => Self::ld_nn_a(self, memory),
+        Instruction::LdNNn(n) => Self::ld_n_nn(self, memory, *n),
+        Instruction::LdNnN(nn) => Self::ld_nn_n(self, memory, *nn),
+        Instruction::LdNnSP => Self::ld_nn_sp(self, memory),
+        Instruction::LdR1R2(r1, r2) => Self::ld_r1_r2(self, memory, *r1, *r2),
+        Instruction::LdRFromMemHL(r) => Self::ld_r_from_mem_hl(self, memory, *r),
+        Instruction::LdRN(r) => Self::ld_r_n(self, memory, *r),
+        Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
+        Instruction::LdHLIA => Self::ld_hli_a(self, memory),
+        Instruction::Nop => Self::nop(self, memory),
+        Instruction::OrN => Self::or_n(self, memory),
+        Instruction::OrR(r) => Self::or_r(self, memory, *r),
+        Instruction::PopRR(rr) => Self::pop_rr(self, memory, *rr),
+        Instruction::PushRR(r) => Self::push_rr(self, memory, *r),
+        Instruction::Ret => Self::ret(self, memory),
+        Instruction::Rla => Self::rla(self, memory),
+        Instruction::Rlca => Self::rlca(self, memory),
+        Instruction::Rra => Self::rra(self, memory),
+        Instruction::Rst(jump_address) => Self::rst_n(self, memory, *jump_address),
+        Instruction::SbcR(r) => Self::sbc_r(self, memory, *r),
+        Instruction::Scf => Self::scf(self, memory),
+        Instruction::Stop => Self::stop(self, memory),
+        Instruction::SubN => Self::sub_n(self, memory),
+        Instruction::SubR(r) => Self::sub_r(self, memory, *r),
+        Instruction::Unimplemented => Self::unimplemented_instruction(self, memory),
+        Instruction::Xor(r) => Self::xor_r(self, memory, *r),
+        Instruction::XorHL => Self::xor_hl(self, memory),
+        Instruction::XorAN => Self::xor_a_n(self, memory),
       }
     }
 
@@ -816,6 +820,25 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn xor_a_n(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let n =  memory.read(pc + 1);
+    let result = self.registers.a ^ n;
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+    self.registers.unset_c_flag();
+
+    self.registers.pc += 2;
+  }
+
   fn and_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let result = self.registers.a & memory.read(pc + 1);
@@ -982,7 +1005,7 @@ impl Cpu {
     if c_flag {
       self.registers.a |= 0b1000_0000;
     } else {
-      self.registers.a &= 0b1000_0000;
+      self.registers.a &= 0b0111_1111;
     }
 
     self.registers.unset_z_flag();
@@ -1007,7 +1030,7 @@ impl Cpu {
     if c_flag {
       self.registers.a |= 0b0000_0001;
     } else {
-      self.registers.a &= 0b0000_0001;
+      self.registers.a &= 0b1111_1110;
     }
 
     self.registers.unset_z_flag();
@@ -1131,7 +1154,7 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
-  fn cb_rlc_r(&mut self, memory: &mut Memory, r: RegisterU8) {
+  fn cb_rlc_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let b7 = self.registers[r] & (1 << 7) != 0;
 
     self.registers[r] = self.registers[r].rotate_left(1);
@@ -1156,6 +1179,67 @@ impl Cpu {
     } else {
       self.registers.unset_c_flag();
     }
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_srl_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let b0 = self.registers[r] & (1) != 0;
+    self.registers[r] = self.registers[r].shr(1);
+
+    if self.registers[r] == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+
+    if b0 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_rr_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let b0 = self.registers[r] & (1) != 0;
+    self.registers[r] = self.registers[r].rotate_right(1);
+    let c_flag = self.registers.get_c_flag();
+
+    if c_flag {
+      self.registers[r] |= 0b1000_0000;
+    } else {
+      self.registers[r] &= 0b0111_1111;
+    }
+
+    if self.registers[r] == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+
+    if b0 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+    
+    self.registers.pc += 1;
+  }
+
+  fn cb_set_b_hl(&mut self, memory: &mut Memory, b: usize) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    let data = memory.read(hl);
+    let result = self.registers.set_bit(data, b, true);
+
+    memory.write(hl, result);
 
     self.registers.pc += 1;
   }
