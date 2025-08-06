@@ -1,5 +1,6 @@
 use cpu::instructions::CycleTable;
 use cpu::instructions::Optable;
+use cpu::prefixed_instructions::PrefixedOptable;
 use cpu::registers::Registers;
 use cpu::registers::RegisterPair;
 use cpu::cpu::Cpu;
@@ -17,6 +18,7 @@ impl Setup {
       cpu: Cpu {
         registers: Registers::new(),
         optable: Optable::new(),
+        prefixed_optable: PrefixedOptable::new(),
         cycles: 0,
         cycles_table: CycleTable::new()
       },

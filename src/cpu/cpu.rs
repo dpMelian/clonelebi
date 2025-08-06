@@ -2,6 +2,8 @@ use cpu::instructions::CycleTable;
 use cpu::instructions::Instruction;
 use cpu::instructions::Optable;
 use cpu::instructions::RstAddress;
+use cpu::prefixed_instructions::PrefixedInstruction;
+use cpu::prefixed_instructions::PrefixedOptable;
 use cpu::registers::Flag;
 use cpu::registers::RegisterPair;
 use cpu::registers::Registers;
@@ -14,6 +16,7 @@ pub const MASTER_CLOCK_SPEED: i32 = 4194304; // Hz
 pub struct Cpu {
   pub registers: Registers,
   pub optable: Optable,
+  pub prefixed_optable: PrefixedOptable,
   pub cycles: u64,
   pub cycles_table: CycleTable,
 }
@@ -23,6 +26,7 @@ impl Cpu {
     Self {
       registers: Registers::new(),
       optable: Optable::new(),
+      prefixed_optable: PrefixedOptable::new(),
       cycles_table: CycleTable::new(),
       cycles: 0
     }
@@ -92,6 +96,15 @@ impl Cpu {
       Instruction::XorHL => Self::xor_hl(self, memory),
     }
 
+    if opcode == 0xCB {
+      let cb_opcode = self.registers.pc + 1;
+      self.registers.pc += 1;
+      match &self.prefixed_optable.prefixed_optable[cb_opcode as usize] {
+        PrefixedInstruction::CBRLCR(r) => Self::cb_rlc_r(self, memory, *r),
+        PrefixedInstruction::Unimplemented => Self::unimplemented_instruction(self, memory),
+      }
+    }
+
     self.cycles += self.cycles_table.cycle_table[opcode as usize];
   }
 
@@ -128,7 +141,11 @@ impl Cpu {
   }
 
   fn unimplemented_instruction(&mut self, memory: &mut Memory) {
-    panic!("Instruction not yet implemented. Opcode: 0x{:02X}. PC: 0x{:02X}", memory.read(self.registers.pc), self.registers.pc);
+    if memory.read(self.registers.pc) == 0xCB {
+      panic!("Prefixed instruction not yet implemented. Opcode: 0x{:02X}. PC: 0x{:02X}", memory.read(self.registers.pc + 1), self.registers.pc + 1);
+    } else {
+      panic!("Instruction not yet implemented. Opcode: 0x{:02X}. PC: 0x{:02X}", memory.read(self.registers.pc), self.registers.pc);
+    }
   }
 
   fn invalid_instruction(&mut self, memory: &mut Memory) {
@@ -1110,6 +1127,35 @@ impl Cpu {
     self.registers.sp += 1;
 
     self.registers.set_pair(rr, ((high as u16) << 8) | (low as u16));
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_rlc_r(&mut self, memory: &mut Memory, r: RegisterU8) {
+    let b7 = self.registers[r] & (1 << 7) != 0;
+
+    self.registers[r] = self.registers[r].rotate_left(1);
+
+    if b7 {
+      self.registers[r] |= 0b0000_0001;
+    } else {
+      self.registers[r] &= 0b0000_0001;
+    }
+
+    if self.registers[r] == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+
+    if b7 {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
 
     self.registers.pc += 1;
   }
