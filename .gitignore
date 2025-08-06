@@ -26,4 +26,6 @@ target
 /target
 
 # Added by author
+
 /roms
+*_log.txt
