@@ -71,6 +71,7 @@ impl Cpu {
       Instruction::LdRFromMemHL(r) => Self::ld_r_from_mem_hl(self, memory, *r),
       Instruction::LdRN(r) => Self::ld_r_n(self, memory, *r),
       Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
+      Instruction::LdHLIA => Self::ld_hli_a(self, memory),
       Instruction::Nop => Self::nop(self, memory),
       Instruction::OrN => Self::or_n(self, memory),
       Instruction::OrR(r) => Self::or_r(self, memory, *r),
@@ -88,6 +89,7 @@ impl Cpu {
       Instruction::SubR(r) => Self::sub_r(self, memory, *r),
       Instruction::Unimplemented => Self::unimplemented_instruction(self, memory),
       Instruction::Xor(r) => Self::xor_r(self, memory, *r),
+      Instruction::XorHL => Self::xor_hl(self, memory),
     }
 
     self.cycles += self.cycles_table.cycle_table[opcode as usize];
@@ -284,6 +286,13 @@ impl Cpu {
     memory.write(self.registers.get_pair(RegisterPair::HL), n);
 
     self.registers.pc += 2;
+  }
+
+  fn ld_hli_a(&mut self, memory: &mut Memory) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    memory.write(hl, self.registers.a);
+    self.registers.set_pair(RegisterPair::HL, hl.wrapping_add(1));
+    self.registers.pc += 1;
   }
 
   fn call(&mut self, memory: &mut Memory) {
@@ -772,6 +781,24 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn xor_hl(&mut self, memory: &mut Memory) {
+    let data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let result = self.registers.a ^ data;
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+    self.registers.unset_c_flag();
+
+    self.registers.pc += 1;
+  }
+
   fn and_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let result = self.registers.a & memory.read(pc + 1);
@@ -894,7 +921,7 @@ impl Cpu {
       self.registers.unset_c_flag();
     }
   
-    self.registers.pc += 1;
+    self.registers.pc += 2;
   }
 
   fn stop(&mut self, _memory: &mut Memory) {

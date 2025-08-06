@@ -57,6 +57,7 @@ pub enum Instruction {
   LdRFromMemHL(RegisterU8),
   LdRN(RegisterU8),
   LdRRA(RegisterPair),
+  LdHLIA,
   Nop,
   OrN,
   OrR(RegisterU8),
@@ -74,6 +75,7 @@ pub enum Instruction {
   SubR(RegisterU8),
   Unimplemented,
   Xor(RegisterU8),
+  XorHL,
 }
 
 pub struct Optable {
@@ -115,6 +117,7 @@ impl Optable {
     table[0x1F] = Instruction::Rra;
     table[0x20] = Instruction::JrCCE(Flag::Z, false);
     table[0x21] = Instruction::LdNNn(Target::Pair(RegisterPair::HL));
+    table[0x22] = Instruction::LdHLIA;
     table[0x23] = Instruction::IncNn(Target::Pair(RegisterPair::HL));
     table[0x24] = Instruction::IncR(RegisterU8::H);
     table[0x25] = Instruction::Dec(RegisterU8::H);
@@ -244,6 +247,7 @@ impl Optable {
     table[0xAB] = Instruction::Xor(RegisterU8::E);
     table[0xAC] = Instruction::Xor(RegisterU8::H);
     table[0xAD] = Instruction::Xor(RegisterU8::L);
+    table[0xAE] = Instruction::XorHL;
     table[0xAF] = Instruction::Xor(RegisterU8::A);
     table[0xB0] = Instruction::OrR(RegisterU8::B);
     table[0xB1] = Instruction::OrR(RegisterU8::C);
