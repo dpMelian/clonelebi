@@ -47,6 +47,7 @@ impl Cpu {
       }
     } else {
       match &self.optable.optable[opcode as usize] {
+        Instruction::AdcN => Self::adc_n(self, memory),
         Instruction::AdcR(r) => Self::adc_r(self, memory, *r),
         Instruction::AddHLRR(rr) => Self::add_hl_rr(self, memory, *rr),
         Instruction::AddN => Self::add_n(self, memory),
@@ -60,12 +61,14 @@ impl Cpu {
         Instruction::CpN => Self::cp_n(self, memory),
         Instruction::CpR(r) => Self::cp_r(self, memory, *r),
         Instruction::Dec(r) => Self::dec_n(self, memory, *r),
+        Instruction::DecHL => Self::dec_hl(self, memory),
         Instruction::Di => Self::di(self, memory),
         Instruction::Halt => Self::halt(self, memory),
         Instruction::IncR(r) => Self::inc_r(self, memory, *r),
         Instruction::IncNn(r1) => Self::inc_nn(self, memory, *r1),
         Instruction::Invalid => Self::invalid_instruction(self, memory),
         Instruction::JpCCNN(cc, set) => Self::jp_cc_nn(self, memory, *cc, *set),
+        Instruction::JpHL => Self::jp_hl(self, memory),
         Instruction::JpNN => Self::jp_nn(self, memory),
         Instruction::JrE => Self::jr_e(self, memory),
         Instruction::JrCCE(cc, set) => Self::jr_cc_e(self, memory, *cc, *set),
@@ -88,11 +91,13 @@ impl Cpu {
         Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
         Instruction::LdHLIA => Self::ld_hli_a(self, memory),
         Instruction::Nop => Self::nop(self, memory),
+        Instruction::OrAHL => Self::or_a_hl(self, memory),
         Instruction::OrN => Self::or_n(self, memory),
         Instruction::OrR(r) => Self::or_r(self, memory, *r),
         Instruction::PopRR(rr) => Self::pop_rr(self, memory, *rr),
         Instruction::PushRR(r) => Self::push_rr(self, memory, *r),
         Instruction::Ret => Self::ret(self, memory),
+        Instruction::RetCC(cc, set) => Self::ret_cc(self, memory, *cc, *set),
         Instruction::Rla => Self::rla(self, memory),
         Instruction::Rlca => Self::rlca(self, memory),
         Instruction::Rra => Self::rra(self, memory),
@@ -128,6 +133,14 @@ impl Cpu {
     }
   }
 
+  pub fn get_half_carry_16_bit(&mut self, a: u16, b: u16) -> bool {
+    if (((a & 0xFFF).wrapping_add(b & 0xFFF)) & 0x1000) == 0x1000 {
+      true
+    } else {
+      false
+    }
+  }
+
   pub fn get_carry(&mut self, a: u8, b: u8) -> bool {
     if (((a as u16 & 0xFF).wrapping_add(b as u16 & 0xFF)) & 0x100) == 0x100 {
       true
@@ -138,6 +151,14 @@ impl Cpu {
 
   pub fn get_carry_sub(&mut self, a: u8, b: u8) -> bool {
     if (((a as u16 & 0xFF).wrapping_sub(b as u16 & 0xFF)) & 0x100) == 0x100 {
+      true
+    } else {
+      false
+    }
+  }
+
+  pub fn get_carry_16_bit(&mut self, a: u16, b: u16) -> bool {
+    if (((a as u32 & 0xFFFF).wrapping_add(b as u32 & 0xFFFF)) & 0x10000) == 0x10000 {
       true
     } else {
       false
@@ -415,6 +436,12 @@ impl Cpu {
     }
   }
 
+  fn jp_hl(&mut self, _memory: &mut Memory) {
+    self.registers.pc += 1;
+
+    self.registers.pc = self.registers.get_pair(RegisterPair::HL);
+  }
+
   fn jr_e(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let e = memory.read(pc + 1) as i8;
@@ -544,6 +571,31 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn dec_hl(&mut self, memory: &mut Memory) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    let data = memory.read(hl);
+    let result = data.wrapping_sub(1);
+    memory.write(hl, result);
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.set_n_flag();
+
+    let half_carry = Self::get_half_carry_sub(self, data, 1);
+
+    if half_carry {
+      self.registers.set_h_flag();
+    } else {
+      self.registers.unset_h_flag();
+    }
+
+    self.registers.pc += 1;
+  }
+
   fn add_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let prev = self.registers.a;
     let result = self.registers.a.wrapping_add(self.registers[r]);
@@ -614,36 +666,42 @@ impl Cpu {
   }
 
   fn add_hl_rr(&mut self, _memory: &mut Memory, rr: Target) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
     let result;
-    let carry_per_bit;
 
     if let Target::Pair(register_pair) = rr {
-      result = self.registers.get_pair(RegisterPair::HL).wrapping_add(self.registers.get_pair(register_pair));
+      result = hl.wrapping_add(self.registers.get_pair(register_pair));
     } else {
-      result = self.registers.get_pair(RegisterPair::HL).wrapping_add(self.registers.sp);
+      result = hl.wrapping_add(self.registers.sp);
     }
-
-    if let Target::Pair(register_pair) = rr {
-      carry_per_bit = self.registers.get_pair(RegisterPair::HL).wrapping_add(self.registers.get_pair(register_pair));
-    } else {
-      carry_per_bit = self.registers.get_pair(RegisterPair::HL).wrapping_add(self.registers.sp);
-    }
-
-    self.registers.set_pair(RegisterPair::HL, result);
 
     self.registers.unset_n_flag();
 
-    if ((carry_per_bit >> 11) & 1) == 1 {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+    let half_carry;
+
+    if let Target::Pair(register_pair) = rr {
+      half_carry = Self::get_half_carry_16_bit(self, hl, self.registers.get_pair(register_pair));
+
+      if half_carry {
+        self.registers.set_h_flag();
+      } else {
+        self.registers.unset_h_flag();
+      }
     }
 
-    if ((carry_per_bit >> 15) & 1) == 1 {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+    let carry;
+
+    if let Target::Pair(register_pair) = rr {
+      carry = Self::get_carry_16_bit(self, hl, self.registers.get_pair(register_pair));
+
+      if carry {
+        self.registers.set_c_flag();
+      } else {
+        self.registers.unset_c_flag();
+      }
     }
+
+    self.registers.set_pair(RegisterPair::HL, result);
 
     self.registers.pc += 1;
   }
@@ -698,6 +756,61 @@ impl Cpu {
     }
 
     self.registers.pc += 1;
+  }
+
+  fn adc_n(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let n = memory.read(pc + 1);
+    let prev = self.registers.a;
+    let c_flag = self.registers.get_c_flag();
+
+    let result;
+
+    if c_flag {
+      result = self.registers.a.wrapping_add(n.wrapping_add(1));
+    } else {
+      result = self.registers.a.wrapping_add(n);
+    }
+
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+
+    let half_carry;
+
+    if c_flag {
+      half_carry = Self::get_half_carry(self, prev, n.wrapping_add(1));
+    } else {
+      half_carry = Self::get_half_carry(self, prev, n);
+    }
+
+    if half_carry {
+      self.registers.set_h_flag();
+    } else {
+      self.registers.unset_h_flag();
+    }
+
+    let carry;
+
+    if c_flag {
+      carry = Self::get_carry(self, prev, n.wrapping_add(1));
+    } else {
+      carry = Self::get_carry(self, prev, n);
+    }
+
+    if carry {
+      self.registers.set_c_flag();
+    } else {
+      self.registers.unset_c_flag();
+    }
+
+    self.registers.pc += 2;
   }
 
   fn sub_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
@@ -912,6 +1025,24 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn or_a_hl(&mut self, memory: &mut Memory) {
+    let result = self.registers.a | memory.read(self.registers.get_pair(RegisterPair::HL));
+
+    self.registers.a = result;
+
+    if result == 0 {
+      self.registers.set_z_flag();
+    } else {
+      self.registers.unset_z_flag();
+    }
+
+    self.registers.unset_n_flag();
+    self.registers.unset_h_flag();
+    self.registers.unset_c_flag();
+    
+    self.registers.pc += 1;
+  }
+
   fn di(&mut self, _memory: &mut Memory) {
     // TODO
     self.registers.pc += 1;
@@ -926,6 +1057,36 @@ impl Cpu {
     self.registers.sp += 1;
 
     self.registers.pc = ((high as u16) << 8) | (low as u16);
+  }
+
+  fn ret_cc(&mut self, memory: &mut Memory, cc: Flag, set: bool) {
+    let sp = self.registers.sp;
+    let low = memory.read(sp);
+    let high = memory.read(sp + 1);
+    self.registers.pc += 1;
+
+    match cc {
+      Flag::Z => {
+        if set && self.registers.get_z_flag() {
+          self.registers.sp += 2;
+          self.registers.pc = ((high as u16) << 8) | (low as u16);
+        } else if !set && !self.registers.get_z_flag() {
+          self.registers.sp += 2;
+          self.registers.pc = ((high as u16) << 8) | (low as u16);
+        }
+      },
+      Flag::C => {
+        if set && self.registers.get_c_flag() {
+          self.registers.sp += 2;
+          self.registers.pc = ((high as u16) << 8) | (low as u16);
+        } else if !set && !self.registers.get_c_flag() {
+          self.registers.sp += 2;
+          self.registers.pc = ((high as u16) << 8) | (low as u16);
+        }
+      },
+      Flag::N => panic!("This flag must not be used here"),
+      Flag::H => panic!("This flag must not be used here"),
+    }
   }
 
   fn sub_n(&mut self, memory: &mut Memory) {
@@ -1185,7 +1346,7 @@ impl Cpu {
 
   fn cb_srl_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let b0 = self.registers[r] & (1) != 0;
-    self.registers[r] = self.registers[r].shr(1);
+    self.registers[r] = self.registers[r] >> 1;
 
     if self.registers[r] == 0 {
       self.registers.set_z_flag();

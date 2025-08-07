@@ -18,6 +18,7 @@ pub enum RstAddress {
 }
 
 pub enum Instruction {
+  AdcN,
   AdcR(RegisterU8),
   AddHLRR(Target),
   AddN,
@@ -31,12 +32,14 @@ pub enum Instruction {
   CpN,
   CpR(RegisterU8),
   Dec(RegisterU8),
+  DecHL,
   Di,
   Halt,
   IncNn(Target),
   IncR(RegisterU8),
   Invalid,
   JpCCNN(Flag, bool),
+  JpHL,
   JpNN,
   JrCCE(Flag, bool),
   JrE,
@@ -59,11 +62,13 @@ pub enum Instruction {
   LdRN(RegisterU8),
   LdRRA(RegisterPair),
   Nop,
+  OrAHL,
   OrN,
   OrR(RegisterU8),
   PopRR(RegisterPair),
   PushRR(RegisterPair),
   Ret,
+  RetCC(Flag, bool),
   Rla,
   Rlca,
   Rra,
@@ -134,6 +139,7 @@ impl Optable {
     table[0x31] = Instruction::LdNNn(Target::SingleU16(RegisterU16::SP));
     table[0x32] = Instruction::LdHLDA;
     table[0x33] = Instruction::IncNn(Target::SingleU16(RegisterU16::SP));
+    table[0x35] = Instruction::DecHL;
     table[0x36] = Instruction::LdHLN;
     table[0x37] = Instruction::Scf;
     table[0x38] = Instruction::JrCCE(Flag::C, true);
@@ -256,6 +262,7 @@ impl Optable {
     table[0xB3] = Instruction::OrR(RegisterU8::E);
     table[0xB4] = Instruction::OrR(RegisterU8::H);
     table[0xB5] = Instruction::OrR(RegisterU8::L);
+    table[0xB6] = Instruction::OrAHL;
     table[0xB7] = Instruction::OrR(RegisterU8::A);
     table[0xB8] = Instruction::CpR(RegisterU8::B);
     table[0xB9] = Instruction::CpR(RegisterU8::C);
@@ -264,6 +271,7 @@ impl Optable {
     table[0xBC] = Instruction::CpR(RegisterU8::H);
     table[0xBD] = Instruction::CpR(RegisterU8::L);
     table[0xBF] = Instruction::CpR(RegisterU8::A);
+    table[0xC0] = Instruction::RetCC(Flag::Z, false);
     table[0xC1] = Instruction::PopRR(RegisterPair::BC);
     table[0xC2] = Instruction::JpCCNN(Flag::Z, false);
     table[0xC3] = Instruction::JpNN;
@@ -271,11 +279,14 @@ impl Optable {
     table[0xC5] = Instruction::PushRR(RegisterPair::BC);
     table[0xC6] = Instruction::AddN;
     table[0xC7] = Instruction::Rst(RstAddress::Rst00);
+    table[0xC8] = Instruction::RetCC(Flag::Z, true);
     table[0xC9] = Instruction::Ret;
     table[0xCA] = Instruction::JpCCNN(Flag::Z, true);
     table[0xCC] = Instruction::CallCcNn(Flag::Z, true);
     table[0xCD] = Instruction::Call;
+    table[0xCE] = Instruction::AdcN;
     table[0xCF] = Instruction::Rst(RstAddress::Rst08);
+    table[0xD0] = Instruction::RetCC(Flag::C, false);
     table[0xD1] = Instruction::PopRR(RegisterPair::DE);
     table[0xD2] = Instruction::JpCCNN(Flag::C, false);
     table[0xD3] = Instruction::Invalid;
@@ -283,6 +294,7 @@ impl Optable {
     table[0xD5] = Instruction::PushRR(RegisterPair::DE);
     table[0xD6] = Instruction::SubN;
     table[0xD7] = Instruction::Rst(RstAddress::Rst10);
+    table[0xD8] = Instruction::RetCC(Flag::C, true);
     table[0xDA] = Instruction::JpCCNN(Flag::C, true);
     table[0xDB] = Instruction::Invalid;
     table[0xDC] = Instruction::CallCcNn(Flag::C, true);
@@ -295,6 +307,7 @@ impl Optable {
     table[0xE5] = Instruction::PushRR(RegisterPair::HL);
     table[0xE6] = Instruction::AndN;
     table[0xE7] = Instruction::Rst(RstAddress::Rst20);
+    table[0xE9] = Instruction::JpHL;
     table[0xEA] = Instruction::LdNnA;
     table[0xEB] = Instruction::Invalid;
     table[0xEC] = Instruction::Invalid;
