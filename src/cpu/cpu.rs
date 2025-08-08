@@ -9,6 +9,7 @@ use cpu::registers::RegisterPair;
 use cpu::registers::Registers;
 use cpu::registers::RegisterU8;
 use cpu::registers::Target;
+use helpers::bit_operations;
 use memory::memory::Memory;
 
 pub const MASTER_CLOCK_SPEED: i32 = 4194304; // Hz
@@ -115,54 +116,6 @@ impl Cpu {
     }
 
     self.cycles += self.cycles_table.cycle_table[opcode as usize];
-  }
-
-  pub fn get_half_carry(&mut self, a: u8, b: u8) -> bool {
-    if (((a & 0xF).wrapping_add(b & 0xF)) & 0x10) == 0x10 {
-      true
-    } else {
-      false
-    }
-  }
-
-  pub fn get_half_carry_sub(&mut self, a: u8, b: u8) -> bool {
-    if (((a & 0xF).wrapping_sub(b & 0xF)) & 0x10) == 0x10 {
-      true
-    } else {
-      false
-    }
-  }
-
-  pub fn get_half_carry_16_bit(&mut self, a: u16, b: u16) -> bool {
-    if (((a & 0xFFF).wrapping_add(b & 0xFFF)) & 0x1000) == 0x1000 {
-      true
-    } else {
-      false
-    }
-  }
-
-  pub fn get_carry(&mut self, a: u8, b: u8) -> bool {
-    if (((a as u16 & 0xFF).wrapping_add(b as u16 & 0xFF)) & 0x100) == 0x100 {
-      true
-    } else {
-      false
-    }
-  }
-
-  pub fn get_carry_sub(&mut self, a: u8, b: u8) -> bool {
-    if (((a as u16 & 0xFF).wrapping_sub(b as u16 & 0xFF)) & 0x100) == 0x100 {
-      true
-    } else {
-      false
-    }
-  }
-
-  pub fn get_carry_16_bit(&mut self, a: u16, b: u16) -> bool {
-    if (((a as u32 & 0xFFFF).wrapping_add(b as u32 & 0xFFFF)) & 0x10000) == 0x10000 {
-      true
-    } else {
-      false
-    }
   }
 
   pub fn handle_flags(&mut self, z: Option<bool>, n: Option<bool>, h: Option<bool>, c: Option<bool>) {
@@ -549,7 +502,7 @@ impl Cpu {
 
     self.registers.unset_n_flag();
 
-    let half_carry = Self::get_half_carry(self, prev, 1);
+    let half_carry = bit_operations::get_half_carry(prev, 1);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -586,7 +539,7 @@ impl Cpu {
 
     self.registers.set_n_flag();
 
-    let half_carry = Self::get_half_carry_sub(self, prev, 1);
+    let half_carry = bit_operations::get_half_carry_sub(prev, 1);
 
     if half_carry {
       self.registers.set_h_flag();
@@ -609,7 +562,7 @@ impl Cpu {
       set_z_flag = true;
     }
 
-    let half_carry = Self::get_half_carry_sub(self, data, 1);
+    let half_carry = bit_operations::get_half_carry_sub(data, 1);
 
     if half_carry {
       set_h_flag = true;
@@ -631,13 +584,13 @@ impl Cpu {
       set_z_flag = true;
     }
 
-    let half_carry = Self::get_half_carry(self, prev, self.registers[r]);
+    let half_carry = bit_operations::get_half_carry(prev, self.registers[r]);
 
     if half_carry {
       set_h_flag = true;
     }
 
-    let carry = Self::get_carry(self, prev, self.registers[r]);
+    let carry = bit_operations::get_carry(prev, self.registers[r]);
 
     if carry {
       set_c_flag = true;
@@ -661,13 +614,13 @@ impl Cpu {
       set_z_flag = true;
     }
 
-    let half_carry = Self::get_half_carry(self, prev, n);
+    let half_carry = bit_operations::get_half_carry(prev, n);
 
     if half_carry {
       set_h_flag = true;
     }
 
-    let carry = Self::get_carry(self, prev, n);
+    let carry = bit_operations::get_carry(prev, n);
 
     if carry {
       set_c_flag = true;
@@ -692,7 +645,7 @@ impl Cpu {
     let half_carry;
 
     if let Target::Pair(register_pair) = rr {
-      half_carry = Self::get_half_carry_16_bit(self, hl, self.registers.get_pair(register_pair));
+      half_carry = bit_operations::get_half_carry_16_bit(hl, self.registers.get_pair(register_pair));
 
       if half_carry {
         set_h_flag = true;
@@ -702,7 +655,7 @@ impl Cpu {
     let carry;
 
     if let Target::Pair(register_pair) = rr {
-      carry = Self::get_carry_16_bit(self, hl, self.registers.get_pair(register_pair));
+      carry = bit_operations::get_carry_16_bit(hl, self.registers.get_pair(register_pair));
 
       if carry {
         set_c_flag = true;
@@ -737,9 +690,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = Self::get_half_carry(self, prev, self.registers[r].wrapping_add(1));
+      half_carry = bit_operations::get_half_carry(prev, self.registers[r].wrapping_add(1));
     } else {
-      half_carry = Self::get_half_carry(self, prev, self.registers[r]);
+      half_carry = bit_operations::get_half_carry(prev, self.registers[r]);
     }
 
     if half_carry {
@@ -749,9 +702,9 @@ impl Cpu {
     let carry;
 
     if c_flag {
-      carry = Self::get_carry(self, prev, self.registers[r].wrapping_add(1));
+      carry = bit_operations::get_carry(prev, self.registers[r].wrapping_add(1));
     } else {
-      carry = Self::get_carry(self, prev, self.registers[r]);
+      carry = bit_operations::get_carry(prev, self.registers[r]);
     }
 
     if carry {
@@ -787,9 +740,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = Self::get_half_carry(self, prev, n.wrapping_add(1));
+      half_carry = bit_operations::get_half_carry(prev, n.wrapping_add(1));
     } else {
-      half_carry = Self::get_half_carry(self, prev, n);
+      half_carry = bit_operations::get_half_carry(prev, n);
     }
 
     if half_carry {
@@ -799,9 +752,9 @@ impl Cpu {
     let carry;
 
     if c_flag {
-      carry = Self::get_carry(self, prev, n.wrapping_add(1));
+      carry = bit_operations::get_carry(prev, n.wrapping_add(1));
     } else {
-      carry = Self::get_carry(self, prev, n);
+      carry = bit_operations::get_carry(prev, n);
     }
 
     if carry {
@@ -824,13 +777,13 @@ impl Cpu {
       set_z_flag = true;
     }
 
-    let half_carry = Self::get_half_carry(self, prev, self.registers[r]);
+    let half_carry = bit_operations::get_half_carry(prev, self.registers[r]);
 
     if half_carry {
       set_h_flag = true;
     }
 
-    let carry = Self::get_carry(self, prev, self.registers[r]);
+    let carry = bit_operations::get_carry(prev, self.registers[r]);
 
     if carry {
       set_c_flag = true;
@@ -862,9 +815,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = Self::get_half_carry_sub(self, prev, self.registers[r].wrapping_sub(1));
+      half_carry = bit_operations::get_half_carry_sub(prev, self.registers[r].wrapping_sub(1));
     } else {
-      half_carry = Self::get_half_carry_sub(self, prev, self.registers[r]);
+      half_carry = bit_operations::get_half_carry_sub(prev, self.registers[r]);
     }
 
     if half_carry {
@@ -874,9 +827,9 @@ impl Cpu {
     let carry;
 
     if c_flag {
-      carry = Self::get_carry_sub(self, prev, self.registers[r].wrapping_sub(1));
+      carry = bit_operations::get_carry_sub(prev, self.registers[r].wrapping_sub(1));
     } else {
-      carry = Self::get_carry_sub(self, prev, self.registers[r]);
+      carry = bit_operations::get_carry_sub(prev, self.registers[r]);
     }
 
     if carry {
@@ -1068,13 +1021,13 @@ impl Cpu {
       set_z_flag = true;
     }
 
-    let half_carry = Self::get_half_carry_sub(self, prev, n);
+    let half_carry = bit_operations::get_half_carry_sub(prev, n);
 
     if half_carry {
       set_h_flag = true;
     }
 
-    let carry = Self::get_carry_sub(self, prev, n);
+    let carry = bit_operations::get_carry_sub(prev, n);
 
     if carry {
       set_c_flag = true;
@@ -1194,13 +1147,13 @@ impl Cpu {
       set_z_flag = true;
     }
 
-    let half_carry = Self::get_half_carry_sub(self, prev, self.registers[r]);
+    let half_carry = bit_operations::get_half_carry_sub(prev, self.registers[r]);
     
     if half_carry {
       set_h_flag = true;
     }
 
-    let carry = Self::get_carry_sub(self, prev, self.registers[r]);
+    let carry = bit_operations::get_carry_sub(prev, self.registers[r]);
 
     if carry {
       set_c_flag = true;
@@ -1222,13 +1175,13 @@ impl Cpu {
       set_z_flag = true;
     }
 
-    let half_carry = Self::get_half_carry_sub(self, prev, n);
+    let half_carry = bit_operations::get_half_carry_sub(prev, n);
 
     if half_carry {
       set_h_flag = true;
     }
 
-    let carry = Self::get_carry_sub(self, prev, n);
+    let carry = bit_operations::get_carry_sub(prev, n);
 
     if carry {
       set_c_flag = true;
