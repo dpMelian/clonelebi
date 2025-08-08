@@ -165,6 +165,32 @@ impl Cpu {
     }
   }
 
+  pub fn handle_flags(&mut self, z: Option<bool>, n: Option<bool>, h: Option<bool>, c: Option<bool>) {
+    if let Some(true) = z {
+      self.registers.set_z_flag();
+    } else if let Some(false) = z {
+      self.registers.unset_z_flag();
+    }
+
+    if let Some(true) = n {
+      self.registers.set_n_flag();
+    } else if let Some(false) = n {
+      self.registers.unset_n_flag();
+    }
+
+    if let Some(true) = h {
+      self.registers.set_h_flag();
+    } else if let Some(false) = h {
+      self.registers.unset_h_flag();
+    }
+
+    if let Some(true) = c {
+      self.registers.set_c_flag();
+    } else if let Some(false) = c {
+      self.registers.unset_c_flag();
+    }
+  }
+
   fn unimplemented_instruction(&mut self, memory: &mut Memory) {
     if memory.read(self.registers.pc) == 0xCB {
       panic!("Prefixed instruction not yet implemented. Opcode: 0x{:02X}. PC: 0x{:02X}", memory.read(self.registers.pc + 1), self.registers.pc + 1);
@@ -575,23 +601,21 @@ impl Cpu {
     let hl = self.registers.get_pair(RegisterPair::HL);
     let data = memory.read(hl);
     let result = data.wrapping_sub(1);
+    let (mut set_z_flag, mut set_h_flag) = (false, false);
+  
     memory.write(hl, result);
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.set_n_flag();
 
     let half_carry = Self::get_half_carry_sub(self, data, 1);
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), None);
 
     self.registers.pc += 1;
   }
@@ -599,32 +623,27 @@ impl Cpu {
   fn add_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let prev = self.registers.a;
     let result = self.registers.a.wrapping_add(self.registers[r]);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.unset_n_flag();
 
     let half_carry = Self::get_half_carry(self, prev, self.registers[r]);
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry = Self::get_carry(self, prev, self.registers[r]);
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
@@ -632,35 +651,29 @@ impl Cpu {
   fn add_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let n = memory.read(pc + 1);
-
     let prev = self.registers.a;
     let result = self.registers.a.wrapping_add(n);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.unset_n_flag();
 
     let half_carry = Self::get_half_carry(self, prev, n);
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry = Self::get_carry(self, prev, n);
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 2;
   }
@@ -668,6 +681,7 @@ impl Cpu {
   fn add_hl_rr(&mut self, _memory: &mut Memory, rr: Target) {
     let hl = self.registers.get_pair(RegisterPair::HL);
     let result;
+    let (mut set_h_flag, mut set_c_flag) = (false, false);
 
     if let Target::Pair(register_pair) = rr {
       result = hl.wrapping_add(self.registers.get_pair(register_pair));
@@ -675,17 +689,13 @@ impl Cpu {
       result = hl.wrapping_add(self.registers.sp);
     }
 
-    self.registers.unset_n_flag();
-
     let half_carry;
 
     if let Target::Pair(register_pair) = rr {
       half_carry = Self::get_half_carry_16_bit(self, hl, self.registers.get_pair(register_pair));
 
       if half_carry {
-        self.registers.set_h_flag();
-      } else {
-        self.registers.unset_h_flag();
+        set_h_flag = true;
       }
     }
 
@@ -695,13 +705,13 @@ impl Cpu {
       carry = Self::get_carry_16_bit(self, hl, self.registers.get_pair(register_pair));
 
       if carry {
-        self.registers.set_c_flag();
-      } else {
-        self.registers.unset_c_flag();
+        set_c_flag = true;
       }
     }
 
     self.registers.set_pair(RegisterPair::HL, result);
+
+    Self::handle_flags(self, None, Some(false), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
@@ -710,6 +720,7 @@ impl Cpu {
     let c_flag = self.registers.get_c_flag();
     let prev = self.registers.a;
     let result;
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     if c_flag {
       result = self.registers.a.wrapping_add(self.registers[r].wrapping_add(1));
@@ -720,12 +731,8 @@ impl Cpu {
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.unset_n_flag();
 
     let half_carry;
 
@@ -736,9 +743,7 @@ impl Cpu {
     }
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry;
@@ -750,10 +755,10 @@ impl Cpu {
     }
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
@@ -763,6 +768,7 @@ impl Cpu {
     let n = memory.read(pc + 1);
     let prev = self.registers.a;
     let c_flag = self.registers.get_c_flag();
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     let result;
 
@@ -775,12 +781,8 @@ impl Cpu {
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.unset_n_flag();
 
     let half_carry;
 
@@ -791,9 +793,7 @@ impl Cpu {
     }
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry;
@@ -805,10 +805,10 @@ impl Cpu {
     }
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 2;
   }
@@ -816,32 +816,27 @@ impl Cpu {
   fn sub_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let prev = self.registers.a;
     let result = self.registers.a.wrapping_sub(self.registers[r]);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.set_n_flag();
 
     let half_carry = Self::get_half_carry(self, prev, self.registers[r]);
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry = Self::get_carry(self, prev, self.registers[r]);
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
     
     self.registers.pc += 1;
   }
@@ -850,6 +845,7 @@ impl Cpu {
     let c_flag = self.registers.get_c_flag();
     let prev = self.registers.a;
     let result;
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     if c_flag {
       result = self.registers.a.wrapping_sub(self.registers[r].wrapping_sub(1));
@@ -860,12 +856,8 @@ impl Cpu {
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.set_n_flag();
 
     let half_carry;
 
@@ -876,9 +868,7 @@ impl Cpu {
     }
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry;
@@ -890,27 +880,24 @@ impl Cpu {
     }
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
 
   fn xor_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let result = self.registers[r] ^ self.registers.a;
+    let mut set_z_flag = false;
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
 
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
-    self.registers.unset_c_flag();
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
 
     self.registers.pc += 1;
   }
@@ -918,17 +905,14 @@ impl Cpu {
   fn xor_hl(&mut self, memory: &mut Memory) {
     let data = memory.read(self.registers.get_pair(RegisterPair::HL));
     let result = self.registers.a ^ data;
+    let mut set_z_flag = false;
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
 
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
-    self.registers.unset_c_flag();
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
 
     self.registers.pc += 1;
   }
@@ -937,17 +921,14 @@ impl Cpu {
     let pc = self.registers.pc;
     let n =  memory.read(pc + 1);
     let result = self.registers.a ^ n;
+    let mut set_z_flag = false;
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
 
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
-    self.registers.unset_c_flag();
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
 
     self.registers.pc += 2;
   }
@@ -955,35 +936,29 @@ impl Cpu {
   fn and_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let result = self.registers.a & memory.read(pc + 1);
+    let mut set_z_flag = false;
 
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
 
-    self.registers.unset_n_flag();
-    self.registers.set_h_flag();
-    self.registers.unset_c_flag();
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(true), Some(false));
 
     self.registers.pc += 2;
   }
 
   fn and_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let result = self.registers.a & self.registers[r];
+    let mut set_z_flag = false;
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
 
-    self.registers.unset_n_flag();
-    self.registers.set_h_flag();
-    self.registers.unset_c_flag();
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(true), Some(false));
 
     self.registers.pc += 1;
   }
@@ -991,54 +966,45 @@ impl Cpu {
   fn or_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let result = self.registers.a | memory.read(pc + 1);
+    let mut set_z_flag = false;
   
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
 
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
-    self.registers.unset_c_flag();
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
 
     self.registers.pc += 2;
   }
 
   fn or_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let result = self.registers.a | self.registers[r];
+    let mut set_z_flag = false;
 
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
 
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
-    self.registers.unset_c_flag();
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
     
     self.registers.pc += 1;
   }
 
   fn or_a_hl(&mut self, memory: &mut Memory) {
     let result = self.registers.a | memory.read(self.registers.get_pair(RegisterPair::HL));
+    let mut set_z_flag = false;
 
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
 
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
-    self.registers.unset_c_flag();
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
     
     self.registers.pc += 1;
   }
@@ -1091,36 +1057,30 @@ impl Cpu {
 
   fn sub_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
-
     let prev = self.registers.a;
     let n = memory.read(pc + 1);
     let result = self.registers.a.wrapping_sub(n);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
   
     self.registers.a = result;
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.set_n_flag();
 
     let half_carry = Self::get_half_carry_sub(self, prev, n);
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry = Self::get_carry_sub(self, prev, n);
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
   
     self.registers.pc += 2;
   }
@@ -1143,16 +1103,15 @@ impl Cpu {
   }
 
   fn ccf(&mut self, _memory: &mut Memory) {
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
+    let mut set_c_flag = true;
 
     let c_flag = self.registers.get_c_flag();
 
     if c_flag {
-      self.registers.unset_c_flag();
-    } else {
-      self.registers.set_c_flag();
+      set_c_flag = false;
     }
+
+    Self::handle_flags(self, None, Some(false), Some(false), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
@@ -1160,6 +1119,7 @@ impl Cpu {
   fn rra(&mut self, _memory: &mut Memory) {
     let b0 = self.registers.a & (1 << 0) != 0;
     let c_flag = self.registers.get_c_flag();
+    let mut set_c_flag = false;
 
     self.registers.a = self.registers.a.rotate_right(1);
     
@@ -1174,10 +1134,10 @@ impl Cpu {
     self.registers.unset_h_flag();
 
     if b0 {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(false), Some(false), Some(false), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
@@ -1185,6 +1145,7 @@ impl Cpu {
   fn rla(&mut self, _memory: &mut Memory) {
     let b7 = self.registers.a & (1 << 7) != 0;
     let c_flag = self.registers.get_c_flag();
+    let mut set_c_flag = false;
 
     self.registers.a = self.registers.a.rotate_left(1);
     
@@ -1194,21 +1155,18 @@ impl Cpu {
       self.registers.a &= 0b1111_1110;
     }
 
-    self.registers.unset_z_flag();
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
-
     if b7 {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(false), Some(false), Some(false), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
 
   fn rlca(&mut self, _memory: &mut Memory) {
     let b7 = self.registers.a & (1 << 7) != 0;
+    let mut set_c_flag = false;
 
     self.registers.a = self.registers.a.rotate_left(1);
     
@@ -1218,15 +1176,11 @@ impl Cpu {
       self.registers.a &= 0b0000_0001;
     }
 
-    self.registers.unset_z_flag();
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
-
     if b7 {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(false), Some(false), Some(false), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
@@ -1234,30 +1188,25 @@ impl Cpu {
   fn cp_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let prev = self.registers.a;
     let result = self.registers.a.wrapping_sub(self.registers[r]);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.set_n_flag();
 
     let half_carry = Self::get_half_carry_sub(self, prev, self.registers[r]);
     
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry = Self::get_carry_sub(self, prev, self.registers[r]);
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
@@ -1267,30 +1216,25 @@ impl Cpu {
     let n = memory.read(pc + 1);
     let prev = self.registers.a;
     let result = self.registers.a.wrapping_sub(n);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     if result == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.set_n_flag();
 
     let half_carry = Self::get_half_carry_sub(self, prev, n);
 
     if half_carry {
-      self.registers.set_h_flag();
-    } else {
-      self.registers.unset_h_flag();
+      set_h_flag = true;
     }
 
     let carry = Self::get_carry_sub(self, prev, n);
 
     if carry {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 2;
   }
@@ -1317,6 +1261,7 @@ impl Cpu {
 
   fn cb_rlc_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let b7 = self.registers[r] & (1 << 7) != 0;
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
 
     self.registers[r] = self.registers[r].rotate_left(1);
 
@@ -1327,49 +1272,41 @@ impl Cpu {
     }
 
     if self.registers[r] == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
 
     if b7 {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
 
   fn cb_srl_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let b0 = self.registers[r] & (1) != 0;
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
     self.registers[r] = self.registers[r] >> 1;
 
     if self.registers[r] == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
 
     if b0 {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
 
     self.registers.pc += 1;
   }
 
   fn cb_rr_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let b0 = self.registers[r] & (1) != 0;
-    self.registers[r] = self.registers[r].rotate_right(1);
     let c_flag = self.registers.get_c_flag();
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+    self.registers[r] = self.registers[r].rotate_right(1);
 
     if c_flag {
       self.registers[r] |= 0b1000_0000;
@@ -1378,19 +1315,14 @@ impl Cpu {
     }
 
     if self.registers[r] == 0 {
-      self.registers.set_z_flag();
-    } else {
-      self.registers.unset_z_flag();
+      set_z_flag = true;
     }
-
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
 
     if b0 {
-      self.registers.set_c_flag();
-    } else {
-      self.registers.unset_c_flag();
+      set_c_flag = true;
     }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
     
     self.registers.pc += 1;
   }
