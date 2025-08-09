@@ -37,6 +37,12 @@ pub struct Registers {
   pub l: u8,
   pub sp: u16, // Stack Pointer
   pub pc: u16, // Program Counter/Pointer
+
+  pub interrupt_flag: u8, // Interrupt flag
+  pub divider_register: u8,
+  pub timer_counter: u8,
+  pub timer_modulo: u8,
+  pub timer_control: u8
 }
 
 impl Index<RegisterU8> for Registers {
@@ -107,7 +113,7 @@ pub enum Target {
 
 impl Registers {
   pub fn new() -> Self {
-    Self { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, h: 0, l: 0, sp: 0, pc: 0 }
+    Self { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, h: 0, l: 0, sp: 0, pc: 0, interrupt_flag: 0, divider_register: 0, timer_counter: 0, timer_modulo: 0, timer_control: 0 }
   }
 
   pub fn get_pair(&self, case: RegisterPair) -> u16 {

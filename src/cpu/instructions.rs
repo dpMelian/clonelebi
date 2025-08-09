@@ -34,6 +34,7 @@ pub enum Instruction {
   Dec(RegisterU8),
   DecHL,
   Di,
+  Ei,
   Halt,
   IncNn(Target),
   IncR(RegisterU8),
@@ -69,6 +70,7 @@ pub enum Instruction {
   PushRR(RegisterPair),
   Ret,
   RetCC(Flag, bool),
+  Reti,
   Rla,
   Rlca,
   Rra,
@@ -295,6 +297,7 @@ impl Optable {
     table[0xD6] = Instruction::SubN;
     table[0xD7] = Instruction::Rst(RstAddress::Rst10);
     table[0xD8] = Instruction::RetCC(Flag::C, true);
+    table[0xD9] = Instruction::Reti;
     table[0xDA] = Instruction::JpCCNN(Flag::C, true);
     table[0xDB] = Instruction::Invalid;
     table[0xDC] = Instruction::CallCcNn(Flag::C, true);
@@ -322,6 +325,7 @@ impl Optable {
     table[0xF6] = Instruction::OrN;
     table[0xF7] = Instruction::Rst(RstAddress::Rst30);
     table[0xFA] = Instruction::LdANn;
+    table[0xFB] = Instruction::Ei;
     table[0xFC] = Instruction::Invalid;
     table[0xFD] = Instruction::Invalid;
     table[0xFE] = Instruction::CpN;

@@ -13,6 +13,7 @@ use helpers::bit_operations;
 use memory::memory::Memory;
 
 pub const MASTER_CLOCK_SPEED: i32 = 4194304; // Hz
+static mut DIV_INTERNAL_COUNTER: u64 = 0;
 
 pub struct Cpu {
   pub registers: Registers,
@@ -20,6 +21,7 @@ pub struct Cpu {
   pub prefixed_optable: PrefixedOptable,
   pub cycles: u64,
   pub cycles_table: CycleTable,
+  interrupt_master_enable_flag: bool,
 }
 
 impl Cpu {
@@ -29,7 +31,8 @@ impl Cpu {
       optable: Optable::new(),
       prefixed_optable: PrefixedOptable::new(),
       cycles_table: CycleTable::new(),
-      cycles: 0
+      cycles: 0,
+      interrupt_master_enable_flag: false,
     }
   }
 
@@ -64,6 +67,7 @@ impl Cpu {
         Instruction::Dec(r) => Self::dec_n(self, memory, *r),
         Instruction::DecHL => Self::dec_hl(self, memory),
         Instruction::Di => Self::di(self, memory),
+        Instruction::Ei => Self::ei(self, memory),
         Instruction::Halt => Self::halt(self, memory),
         Instruction::IncR(r) => Self::inc_r(self, memory, *r),
         Instruction::IncNn(r1) => Self::inc_nn(self, memory, *r1),
@@ -99,6 +103,7 @@ impl Cpu {
         Instruction::PushRR(r) => Self::push_rr(self, memory, *r),
         Instruction::Ret => Self::ret(self, memory),
         Instruction::RetCC(cc, set) => Self::ret_cc(self, memory, *cc, *set),
+        Instruction::Reti => Self::reti(self, memory),
         Instruction::Rla => Self::rla(self, memory),
         Instruction::Rlca => Self::rlca(self, memory),
         Instruction::Rra => Self::rra(self, memory),
@@ -116,6 +121,22 @@ impl Cpu {
     }
 
     self.cycles += self.cycles_table.cycle_table[opcode as usize];
+    
+    unsafe { DIV_INTERNAL_COUNTER += self.cycles_table.cycle_table[opcode as usize] };
+
+    while unsafe { DIV_INTERNAL_COUNTER } >= 256 {
+      self.registers.divider_register = self.registers.divider_register.wrapping_add(1);
+      unsafe { DIV_INTERNAL_COUNTER = DIV_INTERNAL_COUNTER.wrapping_sub(256); };
+    }
+
+    dbg!(self.registers.divider_register);
+
+    let interrupt_flag = memory.read(0xFF0F);
+
+    if interrupt_flag != 0 {
+      self.registers.interrupt_flag = interrupt_flag;
+      dbg!(interrupt_flag);
+    }
   }
 
   pub fn handle_flags(&mut self, z: Option<bool>, n: Option<bool>, h: Option<bool>, c: Option<bool>) {
@@ -962,9 +983,29 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
-  fn di(&mut self, _memory: &mut Memory) {
-    // TODO
+  fn ei(&mut self, _memory: &mut Memory) {
+    self.interrupt_master_enable_flag = true;
+
     self.registers.pc += 1;
+  }
+
+  fn di(&mut self, _memory: &mut Memory) {
+    self.interrupt_master_enable_flag = false;
+
+    self.registers.pc += 1;
+  }
+
+  fn reti(&mut self, memory: &mut Memory) {
+    let sp = self.registers.sp;
+    self.registers.pc += 1;
+    self.registers.sp += 2;
+
+    let low = memory.read(sp);
+    let high = memory.read(sp + 1);
+
+    self.registers.pc = ((high as u16) << 8) | (low as u16);
+    
+    self.interrupt_master_enable_flag = true;
   }
 
   fn ret(&mut self, memory: &mut Memory) {
@@ -1040,6 +1081,8 @@ impl Cpu {
 
   fn stop(&mut self, _memory: &mut Memory) {
     // TODO
+    self.registers.divider_register = 0;
+
     self.registers.pc += 2;
   }
 
