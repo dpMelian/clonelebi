@@ -2,3 +2,4 @@ pub mod cpu;
 pub mod registers;
 pub mod instructions;
 pub mod prefixed_instructions;
+pub mod interrupt_handler;

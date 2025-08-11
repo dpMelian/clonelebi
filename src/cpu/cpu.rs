@@ -1,3 +1,4 @@
+use cpu::interrupt_handler::handle_interrupt;
 use cpu::instructions::CycleTable;
 use cpu::instructions::Instruction;
 use cpu::instructions::Optable;
@@ -12,8 +13,12 @@ use cpu::registers::Target;
 use helpers::bit_operations;
 use memory::memory::Memory;
 
-pub const MASTER_CLOCK_SPEED: i32 = 4194304; // Hz
+pub const MASTER_CLOCK_SPEED: u64 = 4194304; // Hz
+pub const DIV_INCREMENT_RATE: u64 = 16384; // Hz
+pub const TAC_CLOCK_SELECT: [u64; 4] = [4096, 262144, 65536, 16384];
+
 static mut DIV_INTERNAL_COUNTER: u64 = 0;
+static mut TIMA_INTERNAL_COUNTER: u64 = 0;
 
 pub struct Cpu {
   pub registers: Registers,
@@ -121,21 +126,61 @@ impl Cpu {
     }
 
     self.cycles += self.cycles_table.cycle_table[opcode as usize];
-    
-    unsafe { DIV_INTERNAL_COUNTER += self.cycles_table.cycle_table[opcode as usize] };
 
-    while unsafe { DIV_INTERNAL_COUNTER } >= 256 {
-      self.registers.divider_register = self.registers.divider_register.wrapping_add(1);
-      unsafe { DIV_INTERNAL_COUNTER = DIV_INTERNAL_COUNTER.wrapping_sub(256); };
+    unsafe { TIMA_INTERNAL_COUNTER += self.cycles_table.cycle_table[opcode as usize] };
+
+    // Increment TIMA if TAC is enabled
+    if (memory.read(0xFF07) & 0b_0000_0100) == 0b_0000_0100 {
+      let tac_clock_select = memory.read(0xFF07) & (1 << 2) - 1;
+      let mut incremented_value: u8 = self.registers.timer_counter;
+
+      match tac_clock_select {
+        0b_00 => {
+          while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) / 4) {
+            incremented_value = self.registers.timer_counter.wrapping_add(1);
+            unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) / 4); };
+          }
+        },
+        0b_01 => {
+          while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) / 4) {
+            incremented_value = self.registers.timer_counter.wrapping_add(1);
+            unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) / 4); };
+          }
+        },
+        0b_10 => {
+          while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) / 4) {
+            incremented_value = self.registers.timer_counter.wrapping_add(1);
+            unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) / 4); };
+          }
+        },
+        0b_11 => {
+          while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) / 4) {
+            incremented_value = self.registers.timer_counter.wrapping_add(1);
+            unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) / 4); };
+          }
+        },
+        _ => {
+          incremented_value = self.registers.timer_counter.wrapping_add(1);
+        }
+      }
+
+      self.registers.timer_counter = incremented_value;
+      memory.write(0xFF05, incremented_value);
     }
 
-    dbg!(self.registers.divider_register);
+    unsafe { DIV_INTERNAL_COUNTER += self.cycles_table.cycle_table[opcode as usize] };
+
+    while unsafe { DIV_INTERNAL_COUNTER } >= (MASTER_CLOCK_SPEED / DIV_INCREMENT_RATE) {
+      self.registers.divider_register = self.registers.divider_register.wrapping_add(1);
+      unsafe { DIV_INTERNAL_COUNTER = DIV_INTERNAL_COUNTER.wrapping_sub(MASTER_CLOCK_SPEED / DIV_INCREMENT_RATE); };
+    }
 
     let interrupt_flag = memory.read(0xFF0F);
 
-    if interrupt_flag != 0 {
-      self.registers.interrupt_flag = interrupt_flag;
-      dbg!(interrupt_flag);
+    if self.interrupt_master_enable_flag {
+      if interrupt_flag != 0 {
+        handle_interrupt(self, memory, memory.read(0xFFFF), interrupt_flag);
+      }
     }
   }
 
@@ -1008,7 +1053,7 @@ impl Cpu {
     self.interrupt_master_enable_flag = true;
   }
 
-  fn ret(&mut self, memory: &mut Memory) {
+  pub fn ret(&mut self, memory: &mut Memory) {
     let sp = self.registers.sp;
 
     let low = memory.read(sp);
