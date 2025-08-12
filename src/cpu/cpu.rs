@@ -132,46 +132,46 @@ impl Cpu {
     // Increment TIMA if TAC is enabled
     if (memory.read(0xFF07) & 0b_0000_0100) == 0b_0000_0100 {
       let tac_clock_select = memory.read(0xFF07) & (1 << 2) - 1;
-      let mut incremented_value: u8 = self.registers.timer_counter;
+      let mut incremented_value: u8 = self.registers.tima;
 
       match tac_clock_select {
         0b_00 => {
           while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) / 4) {
-            incremented_value = self.registers.timer_counter.wrapping_add(1);
+            incremented_value = self.registers.tima.wrapping_add(1);
             unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) / 4); };
           }
         },
         0b_01 => {
           while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) / 4) {
-            incremented_value = self.registers.timer_counter.wrapping_add(1);
+            incremented_value = self.registers.tima.wrapping_add(1);
             unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) / 4); };
           }
         },
         0b_10 => {
           while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) / 4) {
-            incremented_value = self.registers.timer_counter.wrapping_add(1);
+            incremented_value = self.registers.tima.wrapping_add(1);
             unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) / 4); };
           }
         },
         0b_11 => {
           while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) / 4) {
-            incremented_value = self.registers.timer_counter.wrapping_add(1);
+            incremented_value = self.registers.tima.wrapping_add(1);
             unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) / 4); };
           }
         },
         _ => {
-          incremented_value = self.registers.timer_counter.wrapping_add(1);
+          incremented_value = self.registers.tima.wrapping_add(1);
         }
       }
 
-      self.registers.timer_counter = incremented_value;
+      self.registers.tima = incremented_value;
       memory.write(0xFF05, incremented_value);
     }
 
     unsafe { DIV_INTERNAL_COUNTER += self.cycles_table.cycle_table[opcode as usize] };
 
     while unsafe { DIV_INTERNAL_COUNTER } >= (MASTER_CLOCK_SPEED / DIV_INCREMENT_RATE) {
-      self.registers.divider_register = self.registers.divider_register.wrapping_add(1);
+      self.registers.div = self.registers.div.wrapping_add(1);
       unsafe { DIV_INTERNAL_COUNTER = DIV_INTERNAL_COUNTER.wrapping_sub(MASTER_CLOCK_SPEED / DIV_INCREMENT_RATE); };
     }
 
@@ -1126,7 +1126,7 @@ impl Cpu {
 
   fn stop(&mut self, _memory: &mut Memory) {
     // TODO
-    self.registers.divider_register = 0;
+    self.registers.div = 0;
 
     self.registers.pc += 2;
   }
