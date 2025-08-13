@@ -62,6 +62,7 @@ pub enum Instruction {
   LdRFromMemHL(RegisterU8),
   LdRN(RegisterU8),
   LdRRA(RegisterPair),
+  LdSPHL,
   Nop,
   OrAHL,
   OrN,
@@ -324,6 +325,7 @@ impl Optable {
     table[0xF5] = Instruction::PushRR(RegisterPair::AF);
     table[0xF6] = Instruction::OrN;
     table[0xF7] = Instruction::Rst(RstAddress::Rst30);
+    table[0xF9] = Instruction::LdSPHL;
     table[0xFA] = Instruction::LdANn;
     table[0xFB] = Instruction::Ei;
     table[0xFC] = Instruction::Invalid;

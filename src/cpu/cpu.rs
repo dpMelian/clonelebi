@@ -100,6 +100,7 @@ impl Cpu {
         Instruction::LdRN(r) => Self::ld_r_n(self, memory, *r),
         Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
         Instruction::LdHLIA => Self::ld_hli_a(self, memory),
+        Instruction::LdSPHL => Self::ld_sp_hl(self, memory),
         Instruction::Nop => Self::nop(self, memory),
         Instruction::OrAHL => Self::or_a_hl(self, memory),
         Instruction::OrN => Self::or_n(self, memory),
@@ -132,40 +133,47 @@ impl Cpu {
     // Increment TIMA if TAC is enabled
     if (memory.read(0xFF07) & 0b_0000_0100) == 0b_0000_0100 {
       let tac_clock_select = memory.read(0xFF07) & (1 << 2) - 1;
-      let mut incremented_value: u8 = self.registers.tima;
+      let mut incremented_value: u16 = self.registers.tima.into();
 
       match tac_clock_select {
         0b_00 => {
           while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) / 4) {
-            incremented_value = self.registers.tima.wrapping_add(1);
+            incremented_value = self.registers.tima.wrapping_add(1).into();
             unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) / 4); };
           }
         },
         0b_01 => {
           while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) / 4) {
-            incremented_value = self.registers.tima.wrapping_add(1);
+            incremented_value = self.registers.tima.wrapping_add(1).into();
             unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) / 4); };
           }
         },
         0b_10 => {
           while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) / 4) {
-            incremented_value = self.registers.tima.wrapping_add(1);
+            incremented_value = self.registers.tima.wrapping_add(1).into();
             unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) / 4); };
           }
         },
         0b_11 => {
           while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) / 4) {
-            incremented_value = self.registers.tima.wrapping_add(1);
+            incremented_value = self.registers.tima.wrapping_add(1).into();
             unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) / 4); };
           }
         },
         _ => {
-          incremented_value = self.registers.tima.wrapping_add(1);
+          incremented_value = self.registers.tima.wrapping_add(1).into();
         }
       }
 
-      self.registers.tima = incremented_value;
-      memory.write(0xFF05, incremented_value);
+      // Request timer interrupt if TIMA overflows
+      if incremented_value > 0xFF {
+        let mut interrupt_flag = memory.read(0xFF0F);
+        interrupt_flag |= 0b_0000_0100;
+        memory.write(0xFF0F, interrupt_flag);
+      }
+
+      self.registers.tima = incremented_value.to_le_bytes()[0];
+      memory.write(0xFF05, incremented_value.to_le_bytes()[0]);
     }
 
     unsafe { DIV_INTERNAL_COUNTER += self.cycles_table.cycle_table[opcode as usize] };
@@ -382,6 +390,12 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn ld_sp_hl(&mut self, _memory: &mut Memory) {
+    self.registers.sp = self.registers.get_pair(RegisterPair::HL);
+
+    self.registers.pc += 1;
+  }
+
   fn call(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let sp = self.registers.sp;
@@ -467,6 +481,8 @@ impl Cpu {
           self.registers.pc = nn;
         } else if !set && !self.registers.get_z_flag() {
           self.registers.pc = nn;
+        } else {
+          self.registers.pc += 3;
         }
       },
       Flag::C => {
@@ -474,6 +490,8 @@ impl Cpu {
           self.registers.pc = nn;
         } else if !set && !self.registers.get_c_flag() {
           self.registers.pc = nn;
+        } else {
+          self.registers.pc += 3;
         }
       },
       Flag::N => panic!("This flag must not be used here"),
