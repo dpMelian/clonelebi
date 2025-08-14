@@ -33,7 +33,7 @@ pub enum Instruction {
   CpR(RegisterU8),
   Dec(RegisterU8),
   DecHL,
-  DecRR(RegisterPair),
+  DecRR(Target),
   Di,
   Ei,
   Halt,
@@ -107,7 +107,7 @@ impl Optable {
     table[0x08] = Instruction::LdNnSP;
     table[0x09] = Instruction::AddHLRR(Target::Pair(RegisterPair::BC));
     table[0x0A] = Instruction::LdARR(RegisterPair::BC);
-    table[0x0B] = Instruction::DecRR(RegisterPair::BC);
+    table[0x0B] = Instruction::DecRR(Target::Pair(RegisterPair::BC));
     table[0x0C] = Instruction::IncR(RegisterU8::C);
     table[0x0D] = Instruction::Dec(RegisterU8::C);
     table[0x0E] = Instruction::LdNnN(RegisterU8::C);
@@ -122,6 +122,7 @@ impl Optable {
     table[0x18] = Instruction::JrE;
     table[0x19] = Instruction::AddHLRR(Target::Pair(RegisterPair::DE));
     table[0x1A] = Instruction::LdARR(RegisterPair::DE);
+    table[0x1B] = Instruction::DecRR(Target::Pair(RegisterPair::DE));
     table[0x1C] = Instruction::IncR(RegisterU8::E);
     table[0x1D] = Instruction::Dec(RegisterU8::E);
     table[0x1E] = Instruction::LdNnN(RegisterU8::E);
@@ -136,6 +137,7 @@ impl Optable {
     table[0x28] = Instruction::JrCCE(Flag::Z, true);
     table[0x29] = Instruction::AddHLRR(Target::Pair(RegisterPair::HL));
     table[0x2A] = Instruction::LdAHLI;
+    table[0x2B] = Instruction::DecRR(Target::Pair(RegisterPair::HL));
     table[0x2C] = Instruction::IncR(RegisterU8::L);
     table[0x2D] = Instruction::Dec(RegisterU8::L);
     table[0x2E] = Instruction::LdNnN(RegisterU8::L);
@@ -150,6 +152,7 @@ impl Optable {
     table[0x38] = Instruction::JrCCE(Flag::C, true);
     table[0x39] = Instruction::AddHLRR(Target::SingleU16(RegisterU16::SP));
     table[0x3A] = Instruction::LdAHLD;
+    table[0x3B] = Instruction::DecRR(Target::SingleU16(RegisterU16::SP));
     table[0x3C] = Instruction::IncR(RegisterU8::A);
     table[0x3D] = Instruction::Dec(RegisterU8::A);
     table[0x3E] = Instruction::LdRN(RegisterU8::A);

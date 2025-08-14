@@ -1,13 +1,14 @@
-use cpu::interrupt_handler::handle_interrupt;
 use cpu::instructions::CycleTable;
 use cpu::instructions::Instruction;
 use cpu::instructions::Optable;
 use cpu::instructions::RstAddress;
+use cpu::interrupt_handler::handle_interrupt;
 use cpu::prefixed_instructions::PrefixedInstruction;
 use cpu::prefixed_instructions::PrefixedOptable;
 use cpu::registers::Flag;
 use cpu::registers::RegisterPair;
 use cpu::registers::Registers;
+use cpu::registers::RegisterU16;
 use cpu::registers::RegisterU8;
 use cpu::registers::Target;
 use helpers::bit_operations;
@@ -658,8 +659,12 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
-  fn dec_rr(&mut self, _memory: &mut Memory, rr: RegisterPair) {
-    self.registers.set_pair(rr, self.registers.get_pair(rr).wrapping_sub(1));
+  fn dec_rr(&mut self, _memory: &mut Memory, rr: Target) {
+    if let Target::Pair(register_pair) = rr {
+      self.registers.set_pair(register_pair, self.registers.get_pair(register_pair).wrapping_sub(1));
+    } else if let Target::SingleU16(RegisterU16::SP) = rr {
+      self.registers.sp = self.registers.sp.wrapping_sub(1);
+    }
 
     self.registers.pc += 1;
   }
