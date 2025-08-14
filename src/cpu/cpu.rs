@@ -71,6 +71,7 @@ impl Cpu {
         Instruction::CpR(r) => Self::cp_r(self, memory, *r),
         Instruction::Dec(r) => Self::dec_n(self, memory, *r),
         Instruction::DecHL => Self::dec_hl(self, memory),
+        Instruction::DecRR(rr) => Self::dec_rr(self, memory, *rr),
         Instruction::Di => Self::di(self, memory),
         Instruction::Ei => Self::ei(self, memory),
         Instruction::Halt => Self::halt(self, memory),
@@ -653,6 +654,12 @@ impl Cpu {
     }
 
     Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), None);
+
+    self.registers.pc += 1;
+  }
+
+  fn dec_rr(&mut self, _memory: &mut Memory, rr: RegisterPair) {
+    self.registers.set_pair(rr, self.registers.get_pair(rr).wrapping_sub(1));
 
     self.registers.pc += 1;
   }

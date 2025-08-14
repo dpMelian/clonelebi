@@ -33,6 +33,7 @@ pub enum Instruction {
   CpR(RegisterU8),
   Dec(RegisterU8),
   DecHL,
+  DecRR(RegisterPair),
   Di,
   Ei,
   Halt,
@@ -106,6 +107,7 @@ impl Optable {
     table[0x08] = Instruction::LdNnSP;
     table[0x09] = Instruction::AddHLRR(Target::Pair(RegisterPair::BC));
     table[0x0A] = Instruction::LdARR(RegisterPair::BC);
+    table[0x0B] = Instruction::DecRR(RegisterPair::BC);
     table[0x0C] = Instruction::IncR(RegisterU8::C);
     table[0x0D] = Instruction::Dec(RegisterU8::C);
     table[0x0E] = Instruction::LdNnN(RegisterU8::C);
