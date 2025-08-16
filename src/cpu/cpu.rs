@@ -57,16 +57,21 @@ impl Cpu {
       }
     } else {
       match &self.optable.optable[opcode as usize] {
+        Instruction::AdcHL => Self::adc_hl(self, memory),
         Instruction::AdcN => Self::adc_n(self, memory),
         Instruction::AdcR(r) => Self::adc_r(self, memory, *r),
+        Instruction::AddHL => Self::add_hl(self, memory),
         Instruction::AddHLRR(rr) => Self::add_hl_rr(self, memory, *rr),
         Instruction::AddN => Self::add_n(self, memory),
         Instruction::AddR(r) => Self::add_r(self, memory, *r),
+        Instruction::AddSPE => Self::add_sp_e(self, memory),
+        Instruction::AndHL => Self::and_hl(self, memory),
         Instruction::AndN => Self::and_n(self, memory),
         Instruction::AndR(r) => Self::and_r(self, memory, *r),
         Instruction::Call => Self::call(self, memory),
         Instruction::CallCcNn(cc, set ) => Self::call_cc_nn(self, memory, *cc, *set),
         Instruction::Ccf => Self::ccf(self, memory),
+        Instruction::CpHL => Self::cp_hl(self, memory),
         Instruction::Cpl => Self::cpl(self, memory),
         Instruction::CpN => Self::cp_n(self, memory),
         Instruction::CpR(r) => Self::cp_r(self, memory, *r),
@@ -76,21 +81,26 @@ impl Cpu {
         Instruction::Di => Self::di(self, memory),
         Instruction::Ei => Self::ei(self, memory),
         Instruction::Halt => Self::halt(self, memory),
-        Instruction::IncR(r) => Self::inc_r(self, memory, *r),
+        Instruction::IncHL => Self::inc_hl(self, memory),
         Instruction::IncNn(r1) => Self::inc_nn(self, memory, *r1),
+        Instruction::IncR(r) => Self::inc_r(self, memory, *r),
         Instruction::Invalid => Self::invalid_instruction(self, memory),
         Instruction::JpCCNN(cc, set) => Self::jp_cc_nn(self, memory, *cc, *set),
         Instruction::JpHL => Self::jp_hl(self, memory),
         Instruction::JpNN => Self::jp_nn(self, memory),
-        Instruction::JrE => Self::jr_e(self, memory),
         Instruction::JrCCE(cc, set) => Self::jr_cc_e(self, memory, *cc, *set),
+        Instruction::JrE => Self::jr_e(self, memory),
         Instruction::LdAHLD => Self::ld_a_hld(self, memory),
         Instruction::LdAHLI => Self::ld_a_hli(self, memory),
         Instruction::LdANn => Self::ld_a_nn(self, memory),
         Instruction::LdARR(rr) => Self::ld_a_rr(self, memory, *rr),
+        Instruction::LdhAC => Self::ldh_a_c(self, memory),
         Instruction::LdhAN => Self::ldh_a_n(self, memory),
+        Instruction::LdhCA => Self::ldh_c_a(self, memory),
         Instruction::LdHLDA => Self::ld_hld_a(self, memory),
+        Instruction::LdHLIA => Self::ld_hli_a(self, memory),
         Instruction::LdHLN => Self::ld_hl_n(self, memory),
+        Instruction::LdHLSPE => Self::ld_hl_sp_e(self, memory),
         Instruction::LdhNR(r) => Self::ldh_n_r(self, memory, *r),
         Instruction::LdMemHLFromR(r) => Self::ld_mem_hl_from_r(self, memory, *r),
         Instruction::LdNnA => Self::ld_nn_a(self, memory),
@@ -101,7 +111,6 @@ impl Cpu {
         Instruction::LdRFromMemHL(r) => Self::ld_r_from_mem_hl(self, memory, *r),
         Instruction::LdRN(r) => Self::ld_r_n(self, memory, *r),
         Instruction::LdRRA(r) => Self::ld_rr_a(self, memory, *r),
-        Instruction::LdHLIA => Self::ld_hli_a(self, memory),
         Instruction::LdSPHL => Self::ld_sp_hl(self, memory),
         Instruction::Nop => Self::nop(self, memory),
         Instruction::OrAHL => Self::or_a_hl(self, memory),
@@ -115,16 +124,20 @@ impl Cpu {
         Instruction::Rla => Self::rla(self, memory),
         Instruction::Rlca => Self::rlca(self, memory),
         Instruction::Rra => Self::rra(self, memory),
+        Instruction::Rrca => Self::rrca(self, memory),
         Instruction::Rst(jump_address) => Self::rst_n(self, memory, *jump_address),
+        Instruction::SbcHL => Self::sbc_hl(self, memory),
+        Instruction::SbcN => Self::sbc_n(self, memory),
         Instruction::SbcR(r) => Self::sbc_r(self, memory, *r),
         Instruction::Scf => Self::scf(self, memory),
         Instruction::Stop => Self::stop(self, memory),
+        Instruction::SubHL => Self::sub_hl(self, memory),
         Instruction::SubN => Self::sub_n(self, memory),
         Instruction::SubR(r) => Self::sub_r(self, memory, *r),
         Instruction::Unimplemented => Self::unimplemented_instruction(self, memory),
         Instruction::Xor(r) => Self::xor_r(self, memory, *r),
-        Instruction::XorHL => Self::xor_hl(self, memory),
         Instruction::XorAN => Self::xor_a_n(self, memory),
+        Instruction::XorHL => Self::xor_hl(self, memory),
       }
     }
 
@@ -376,11 +389,61 @@ impl Cpu {
     self.registers.pc += 2;
   }
 
+  fn ldh_c_a(&mut self, memory: &mut Memory) {
+    memory.write((0xFF as u16) << 8 | self.registers.c as u16, self.registers.a);
+
+    self.registers.pc += 1;
+  }
+
+  fn ldh_a_c(&mut self, memory: &mut Memory) {
+    self.registers.a = memory.read((0xFF as u16) << 8 | self.registers.c as u16);
+
+    self.registers.pc += 1;
+  }
+
   fn ld_hl_n(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let n = memory.read(pc + 1);
 
     memory.write(self.registers.get_pair(RegisterPair::HL), n);
+
+    self.registers.pc += 2;
+  }
+
+  fn ld_hl_sp_e(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let sp = self.registers.sp;
+    let e = memory.read(pc + 1) as i8;
+    let result = sp.wrapping_add_signed(e.into());
+    let (mut set_h_flag, mut set_c_flag) = (false, false);
+
+    self.registers.set_pair(RegisterPair::HL, result);
+
+    let half_carry;
+    
+    if (((sp & 0xF).wrapping_add_signed(e as i16 & 0xF)) & 0x10) == 0x10 {
+      half_carry = true;
+    } else {
+      half_carry = false;
+    };
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry;
+
+    if (((sp & 0xFF).wrapping_add_signed(e as i16 & 0xFF)) & 0x100) == 0x100 {
+      carry = true;
+    } else {
+      carry = false;
+    }
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(false), Some(false), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 2;
   }
@@ -601,12 +664,35 @@ impl Cpu {
 
   fn inc_nn(&mut self, _memory: &mut Memory, r1: Target) {
     if let Target::SingleU16(_register) = r1 {
-      self.registers.sp += 1;
+      self.registers.sp = self.registers.sp.wrapping_add(1);
     }
 
     if let Target::Pair(register) = r1 {
       self.registers.set_pair(register, self.registers.get_pair(register).wrapping_add(1));
     }
+
+    self.registers.pc += 1;
+  }
+
+  fn inc_hl(&mut self, memory: &mut Memory) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    let prev = memory.read(hl);
+    let result = prev.wrapping_add(1);
+    let (mut set_z_flag, mut set_h_flag) = (false, false);
+
+    memory.write(hl, result);
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    let half_carry = bit_operations::get_half_carry(prev, 1);
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(set_h_flag), None);
 
     self.registers.pc += 1;
   }
@@ -746,12 +832,24 @@ impl Cpu {
       if half_carry {
         set_h_flag = true;
       }
+    } else {
+      half_carry = bit_operations::get_half_carry_16_bit(hl, self.registers.sp);
+
+      if half_carry {
+        set_h_flag = true;
+      }
     }
 
     let carry;
 
     if let Target::Pair(register_pair) = rr {
       carry = bit_operations::get_carry_16_bit(hl, self.registers.get_pair(register_pair));
+
+      if carry {
+        set_c_flag = true;
+      }
+    } else {
+      carry = bit_operations::get_carry_16_bit(hl, self.registers.sp);
 
       if carry {
         set_c_flag = true;
@@ -763,6 +861,74 @@ impl Cpu {
     Self::handle_flags(self, None, Some(false), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 1;
+  }
+
+  fn add_hl(&mut self, memory: &mut Memory) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    let a = self.registers.a;
+    let prev = memory.read(hl);
+    let result = prev.wrapping_add(a);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
+
+    self.registers.a = result;
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    let half_carry = bit_operations::get_half_carry(prev, a);
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry = bit_operations::get_carry(prev, a);
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(set_h_flag), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
+  fn add_sp_e(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let sp = self.registers.sp;
+    let e = memory.read(pc + 1) as i8;
+    let result = sp.wrapping_add_signed(e.into());
+    let (mut set_h_flag, mut set_c_flag) = (false, false);
+
+    self.registers.sp = result;
+
+    let half_carry;
+    
+    if (((sp & 0xF).wrapping_add_signed(e as i16 & 0xF)) & 0x10) == 0x10 {
+      half_carry = true;
+    } else {
+      half_carry = false;
+    };
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry;
+
+    if (((sp & 0xFF).wrapping_add_signed(e as i16 & 0xFF)) & 0x100) == 0x100 {
+      carry = true;
+    } else {
+      carry = false;
+    }
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(false), Some(false), Some(set_h_flag), Some(set_c_flag));
+
+    self.registers.pc += 2;
   }
 
   fn adc_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
@@ -862,6 +1028,55 @@ impl Cpu {
     self.registers.pc += 2;
   }
 
+  fn adc_hl(&mut self, memory: &mut Memory) {
+    let a = self.registers.a;
+    let c_flag = self.registers.get_c_flag();
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    let data = memory.read(hl);
+    let result;
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
+
+    if c_flag {
+      result = self.registers.a.wrapping_add(data.wrapping_add(1));
+    } else {
+      result = self.registers.a.wrapping_add(data);
+    }
+
+    self.registers.a = result;
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    let half_carry;
+
+    if c_flag {
+      half_carry = bit_operations::get_half_carry(a, self.registers.a.wrapping_add(data.wrapping_add(1)));
+    } else {
+      half_carry = bit_operations::get_half_carry(a, self.registers.a.wrapping_add(data));
+    }
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry;
+
+    if c_flag {
+      carry = bit_operations::get_carry(a, self.registers.a.wrapping_add(data.wrapping_add(1)));
+    } else {
+      carry = bit_operations::get_carry(a, self.registers.a.wrapping_add(data));
+    }
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(set_h_flag), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
   fn sub_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let prev = self.registers.a;
     let result = self.registers.a.wrapping_sub(self.registers[r]);
@@ -887,6 +1102,66 @@ impl Cpu {
 
     Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
     
+    self.registers.pc += 1;
+  }
+
+  fn sub_n(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let prev = self.registers.a;
+    let n = memory.read(pc + 1);
+    let result = self.registers.a.wrapping_sub(n);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
+  
+    self.registers.a = result;
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    let half_carry = bit_operations::get_half_carry_sub(prev, n);
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry = bit_operations::get_carry_sub(prev, n);
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
+  
+    self.registers.pc += 2;
+  }
+
+  fn sub_hl(&mut self, memory: &mut Memory) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    let a = self.registers.a;
+    let data = memory.read(hl);
+    let result = a.wrapping_sub(data);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
+
+    self.registers.a = result;
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    let half_carry = bit_operations::get_half_carry_sub(a, data);
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry = bit_operations::get_carry_sub(a, data);
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
+
     self.registers.pc += 1;
   }
 
@@ -935,6 +1210,102 @@ impl Cpu {
     Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
 
     self.registers.pc += 1;
+  }
+
+  fn sbc_hl(&mut self, memory: &mut Memory) {
+    let hl = self.registers.get_pair(RegisterPair::HL);
+    let a = self.registers.a;
+    let c_flag = self.registers.get_c_flag();
+    let data = memory.read(hl);
+    let result;
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
+
+    if c_flag {
+      result = a.wrapping_sub(data.wrapping_sub(1));
+    } else {
+      result = a.wrapping_sub(data);
+    }
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    let half_carry;
+
+    if c_flag {
+      half_carry = bit_operations::get_half_carry_sub(a, data.wrapping_sub(1));
+    } else {
+      half_carry = bit_operations::get_half_carry_sub(a, data);
+    }
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry;
+
+    if c_flag {
+      carry = bit_operations::get_carry_sub(a, data.wrapping_sub(1));
+    } else {
+      carry = bit_operations::get_carry_sub(a, data);
+    }
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
+  fn sbc_n(&mut self, memory: &mut Memory) {
+    let pc = self.registers.pc;
+    let c_flag = self.registers.get_c_flag();
+    let prev = self.registers.a;
+    let result;
+    let n = memory.read(pc);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
+
+    if c_flag {
+      result = self.registers.a.wrapping_sub(n.wrapping_sub(1));
+    } else {
+      result = self.registers.a.wrapping_sub(n);
+    }
+
+    self.registers.a = result;
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    let half_carry;
+
+    if c_flag {
+      half_carry = bit_operations::get_half_carry_sub(prev, n.wrapping_sub(1));
+    } else {
+      half_carry = bit_operations::get_half_carry_sub(prev, n);
+    }
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry;
+
+    if c_flag {
+      carry = bit_operations::get_carry_sub(prev, n.wrapping_sub(1));
+    } else {
+      carry = bit_operations::get_carry_sub(prev, n);
+    }
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
+
+    self.registers.pc += 2;
   }
 
   fn xor_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
@@ -1002,6 +1373,21 @@ impl Cpu {
     let result = self.registers.a & self.registers[r];
     let mut set_z_flag = false;
     self.registers.a = result;
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(true), Some(false));
+
+    self.registers.pc += 1;
+  }
+
+  fn and_hl(&mut self, memory: &mut Memory) {
+    let data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let result = self.registers.a & data;
+    self.registers.a = result;
+    let mut set_z_flag = false; 
 
     if result == 0 {
       set_z_flag = true;
@@ -1124,36 +1510,6 @@ impl Cpu {
     }
   }
 
-  fn sub_n(&mut self, memory: &mut Memory) {
-    let pc = self.registers.pc;
-    let prev = self.registers.a;
-    let n = memory.read(pc + 1);
-    let result = self.registers.a.wrapping_sub(n);
-    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
-  
-    self.registers.a = result;
-
-    if result == 0 {
-      set_z_flag = true;
-    }
-
-    let half_carry = bit_operations::get_half_carry_sub(prev, n);
-
-    if half_carry {
-      set_h_flag = true;
-    }
-
-    let carry = bit_operations::get_carry_sub(prev, n);
-
-    if carry {
-      set_c_flag = true;
-    }
-
-    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
-  
-    self.registers.pc += 2;
-  }
-
   fn stop(&mut self, _memory: &mut Memory) {
     // TODO
     self.registers.div = 0;
@@ -1187,6 +1543,27 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn rrca(&mut self, _memory: &mut Memory) {
+    let b0 = self.registers.a & (1 << 0) != 0;
+    let mut set_c_flag: bool = false;
+
+    self.registers.a = self.registers.a.rotate_right(1);
+    
+    if b0 {
+      self.registers.a |= 0b1000_0000;
+    } else {
+      self.registers.a &= 0b0111_1111;
+    }
+
+    if b0 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(false), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
   fn rra(&mut self, _memory: &mut Memory) {
     let b0 = self.registers.a & (1 << 0) != 0;
     let c_flag = self.registers.get_c_flag();
@@ -1199,10 +1576,6 @@ impl Cpu {
     } else {
       self.registers.a &= 0b0111_1111;
     }
-
-    self.registers.unset_z_flag();
-    self.registers.unset_n_flag();
-    self.registers.unset_h_flag();
 
     if b0 {
       set_c_flag = true;
@@ -1310,6 +1683,33 @@ impl Cpu {
     self.registers.pc += 2;
   }
 
+  fn cp_hl(&mut self, memory: &mut Memory) {
+    let a = self.registers.a;
+    let data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let result = self.registers.a.wrapping_sub(data);
+    let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    let half_carry = bit_operations::get_half_carry_sub(a, data);
+
+    if half_carry {
+      set_h_flag = true;
+    }
+
+    let carry = bit_operations::get_carry_sub(a, data);
+
+    if carry {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(true), Some(set_h_flag), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
   fn halt(&mut self, _memory: &mut Memory) {
     // TODO
 
@@ -1320,13 +1720,11 @@ impl Cpu {
     let sp = self.registers.sp;
 
     let low = memory.read(sp);
-    self.registers.sp += 1;
-
     let high = memory.read(sp + 1);
-    self.registers.sp += 1;
-
+    
     self.registers.set_pair(rr, ((high as u16) << 8) | (low as u16));
-
+    
+    self.registers.sp += 2;
     self.registers.pc += 1;
   }
 
