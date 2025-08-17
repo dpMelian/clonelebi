@@ -827,13 +827,13 @@ impl Cpu {
     let half_carry;
 
     if let Target::Pair(register_pair) = rr {
-      half_carry = bit_operations::get_half_carry_16_bit(hl, self.registers.get_pair(register_pair));
+      half_carry = bit_operations::get_half_carry_16_bit_high(hl, self.registers.get_pair(register_pair));
 
       if half_carry {
         set_h_flag = true;
       }
     } else {
-      half_carry = bit_operations::get_half_carry_16_bit(hl, self.registers.sp);
+      half_carry = bit_operations::get_half_carry_16_bit_high(hl, self.registers.sp);
 
       if half_carry {
         set_h_flag = true;
@@ -843,13 +843,13 @@ impl Cpu {
     let carry;
 
     if let Target::Pair(register_pair) = rr {
-      carry = bit_operations::get_carry_16_bit(hl, self.registers.get_pair(register_pair));
+      carry = bit_operations::get_carry_16_bit_high(hl, self.registers.get_pair(register_pair));
 
       if carry {
         set_c_flag = true;
       }
     } else {
-      carry = bit_operations::get_carry_16_bit(hl, self.registers.sp);
+      carry = bit_operations::get_carry_16_bit_high(hl, self.registers.sp);
 
       if carry {
         set_c_flag = true;
@@ -988,9 +988,9 @@ impl Cpu {
     let result;
 
     if c_flag {
-      result = self.registers.a.wrapping_add(n.wrapping_add(1));
+      result = prev.wrapping_add(n.wrapping_add(1));
     } else {
-      result = self.registers.a.wrapping_add(n);
+      result = prev.wrapping_add(n);
     }
 
     self.registers.a = result;
@@ -1037,9 +1037,9 @@ impl Cpu {
     let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     if c_flag {
-      result = self.registers.a.wrapping_add(data.wrapping_add(1));
+      result = a.wrapping_add(data.wrapping_add(1));
     } else {
-      result = self.registers.a.wrapping_add(data);
+      result = a.wrapping_add(data);
     }
 
     self.registers.a = result;
@@ -1051,9 +1051,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = bit_operations::get_half_carry(a, self.registers.a.wrapping_add(data.wrapping_add(1)));
+      half_carry = bit_operations::get_half_carry_16_bit_low(a as u16, data as u16, 1);
     } else {
-      half_carry = bit_operations::get_half_carry(a, self.registers.a.wrapping_add(data));
+      half_carry = bit_operations::get_half_carry_16_bit_low(a as u16, data as u16, 0);
     }
 
     if half_carry {
@@ -1063,9 +1063,9 @@ impl Cpu {
     let carry;
 
     if c_flag {
-      carry = bit_operations::get_carry(a, self.registers.a.wrapping_add(data.wrapping_add(1)));
+      carry = bit_operations::get_carry_16_bit_low(a as u16, data as u16, 1);
     } else {
-      carry = bit_operations::get_carry(a, self.registers.a.wrapping_add(data));
+      carry = bit_operations::get_carry_16_bit_low(a as u16, data as u16, 0);
     }
 
     if carry {
@@ -1226,6 +1226,8 @@ impl Cpu {
       result = a.wrapping_sub(data);
     }
 
+    self.registers.a = result;
+
     if result == 0 {
       set_z_flag = true;
     }
@@ -1233,9 +1235,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = bit_operations::get_half_carry_sub(a, data.wrapping_sub(1));
+      half_carry = bit_operations::get_half_carry_sub_refactor(a as u16, &[data as u16, 1]);
     } else {
-      half_carry = bit_operations::get_half_carry_sub(a, data);
+      half_carry = bit_operations::get_half_carry_sub_refactor(a as u16, &[data as u16]);
     }
 
     if half_carry {
@@ -1471,6 +1473,7 @@ impl Cpu {
 
   pub fn ret(&mut self, memory: &mut Memory) {
     let sp = self.registers.sp;
+    self.registers.pc += 1;
 
     let low = memory.read(sp);
     self.registers.sp += 1;
