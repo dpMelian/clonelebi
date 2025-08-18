@@ -61,6 +61,21 @@ pub fn get_carry_sub(a: u8, b: u8) -> bool {
   }
 }
 
+// TODO: use only this function instead of get_carry_sub
+pub fn get_carry_sub_refactor(initial_value: u16, values: &[u16]) -> bool {
+  let mut result = initial_value & 0xFF;
+
+  for value in values {
+    result = result - (value & 0xFF);
+  }
+
+  if result & 0x100 == 0x100 {
+    true
+  } else {
+    false
+  }
+}
+
 pub fn get_carry_16_bit_high(a: u16, b: u16) -> bool {
   if (((a as u32 & 0xFFFF).wrapping_add(b as u32 & 0xFFFF)) & 0x10000) == 0x10000 {
     true
