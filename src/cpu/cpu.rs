@@ -1176,7 +1176,7 @@ impl Cpu {
     let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     if c_flag {
-      result = self.registers.a.wrapping_sub(r.wrapping_sub(1));
+      result = self.registers.a.wrapping_sub(r).wrapping_sub(1);
     } else {
       result = self.registers.a.wrapping_sub(r);
     }
@@ -1190,9 +1190,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = bit_operations::get_half_carry_sub_refactor(prev as u16, &[r as u16, 1]);
+      half_carry = bit_operations::get_half_carry_sub_refactor(prev, &[r, 1]);
     } else {
-      half_carry = bit_operations::get_half_carry_sub_refactor(prev as u16, &[r as u16]);
+      half_carry = bit_operations::get_half_carry_sub_refactor(prev, &[r]);
     }
 
     if half_carry {
@@ -1202,9 +1202,9 @@ impl Cpu {
     let carry;
 
     if c_flag {
-      carry = bit_operations::get_carry_sub_refactor(prev as u16, &[r as u16, 1]);
+      carry = bit_operations::get_carry_sub_refactor(prev, &[r, 1]);
     } else {
-      carry = bit_operations::get_carry_sub_refactor(prev as u16, &[r as u16]);
+      carry = bit_operations::get_carry_sub_refactor(prev, &[r]);
     }
 
     if carry {
@@ -1239,9 +1239,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = bit_operations::get_half_carry_sub_refactor(a as u16, &[data as u16, 1]);
+      half_carry = bit_operations::get_half_carry_sub_refactor(a, &[data, 1]);
     } else {
-      half_carry = bit_operations::get_half_carry_sub_refactor(a as u16, &[data as u16]);
+      half_carry = bit_operations::get_half_carry_sub_refactor(a, &[data]);
     }
 
     if half_carry {
@@ -1624,7 +1624,7 @@ impl Cpu {
     if b7 {
       self.registers.a |= 0b0000_0001;
     } else {
-      self.registers.a &= 0b0000_0001;
+      self.registers.a &= 0b1111_1110;
     }
 
     if b7 {
@@ -1744,7 +1744,7 @@ impl Cpu {
     if b7 {
       self.registers[r] |= 0b0000_0001;
     } else {
-      self.registers[r] &= 0b0000_0001;
+      self.registers[r] &= 0b1111_1110;
     }
 
     if self.registers[r] == 0 {

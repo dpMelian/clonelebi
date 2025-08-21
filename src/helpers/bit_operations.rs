@@ -15,14 +15,14 @@ pub fn get_half_carry_sub(a: u8, b: u8) -> bool {
 }
 
 // TODO: use only this function instead of get_half_carry_sub
-pub fn get_half_carry_sub_refactor(initial_value: u16, values: &[u16]) -> bool {
-  let mut result = initial_value & 0xF;
+pub fn get_half_carry_sub_refactor(initial_value: u8, values: &[u8]) -> bool {
+  let mut sum = 0;
 
   for value in values {
-    result = result - (value & 0xF);
+    sum = sum + (value & 0xF);
   }
 
-  if result & 0x10 == 0x10 {
+  if (initial_value & 0xF) < sum {
     true
   } else {
     false
@@ -62,14 +62,14 @@ pub fn get_carry_sub(a: u8, b: u8) -> bool {
 }
 
 // TODO: use only this function instead of get_carry_sub
-pub fn get_carry_sub_refactor(initial_value: u16, values: &[u16]) -> bool {
-  let mut result = initial_value & 0xFF;
+pub fn get_carry_sub_refactor(initial_value: u8, values: &[u8]) -> bool {
+  let mut sum: u16 = 0;
 
   for value in values {
-    result = result - (value & 0xFF);
+    sum = sum + (*value as u16 & 0xFF);
   }
 
-  if result & 0x100 == 0x100 {
+  if (initial_value as u16 & 0xFF) < sum {
     true
   } else {
     false
