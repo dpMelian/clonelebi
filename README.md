@@ -1,8 +1,8 @@
 # Clonelebi
 
-Clonelebi is a GameBoy emulator project currently in development.
+Clonelebi is a Game Boy emulator project currently in development.
 
-## Current status on Blargg's Gameboy hardware test ROMs
+## Current status on Blargg's Game Boy hardware test ROMs
 
 ### CPU instructions (cpu_instrs)
 

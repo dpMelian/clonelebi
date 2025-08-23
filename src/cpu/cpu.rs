@@ -50,6 +50,7 @@ impl Cpu {
       self.registers.pc += 1;
       match &self.prefixed_optable.prefixed_optable[cb_opcode as usize] {
         PrefixedInstruction::CBRLCR(r) => Self::cb_rlc_r(self, memory, *r),
+        PrefixedInstruction::CBRlR(r) => Self::cb_rl_r(self, memory, *r),
         PrefixedInstruction::CBRRCR(r) => Self::cb_rrc_r(self, memory, *r),
         PrefixedInstruction::CBRRR(r) => Self::cb_rr_r(self, memory, *r),
         PrefixedInstruction::CBSetBHL(b) => Self::cb_set_b_hl(self, memory, *b),
@@ -991,7 +992,7 @@ impl Cpu {
     let result;
 
     if c_flag {
-      result = prev.wrapping_add(n.wrapping_add(1));
+      result = prev.wrapping_add(n).wrapping_add(1);
     } else {
       result = prev.wrapping_add(n);
     }
@@ -1832,6 +1833,32 @@ impl Cpu {
     }
 
     if b0 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_rl_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let b7 = self.registers[r] & (1 << 7) != 0;
+    let c_flag = self.registers.get_c_flag();
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+
+    self.registers[r] = self.registers[r].rotate_left(1);
+
+    if c_flag {
+      self.registers[r] |= 0b0000_0001;
+    } else {
+      self.registers[r] &= 0b1111_1110;
+    }
+
+    if self.registers[r] == 0 {
+      set_z_flag = true;
+    }
+
+    if b7 {
       set_c_flag = true;
     }
 

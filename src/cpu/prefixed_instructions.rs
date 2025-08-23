@@ -2,6 +2,7 @@ use cpu::registers::RegisterU8;
 
 pub enum PrefixedInstruction {
   CBRLCR(RegisterU8),
+  CBRlR(RegisterU8),
   CBRRCR(RegisterU8),
   CBRRR(RegisterU8),
   CBSetBHL(usize),
@@ -31,6 +32,13 @@ impl PrefixedOptable {
     table[0x0C] = PrefixedInstruction::CBRRCR(RegisterU8::H);
     table[0x0D] = PrefixedInstruction::CBRRCR(RegisterU8::L);
     table[0x0F] = PrefixedInstruction::CBRRCR(RegisterU8::A);
+    table[0x10] = PrefixedInstruction::CBRlR(RegisterU8::B);
+    table[0x11] = PrefixedInstruction::CBRlR(RegisterU8::C);
+    table[0x12] = PrefixedInstruction::CBRlR(RegisterU8::D);
+    table[0x13] = PrefixedInstruction::CBRlR(RegisterU8::E);
+    table[0x14] = PrefixedInstruction::CBRlR(RegisterU8::H);
+    table[0x15] = PrefixedInstruction::CBRlR(RegisterU8::L);
+    table[0x17] = PrefixedInstruction::CBRlR(RegisterU8::A);
     table[0x18] = PrefixedInstruction::CBRRR(RegisterU8::B);
     table[0x19] = PrefixedInstruction::CBRRR(RegisterU8::C);
     table[0x1A] = PrefixedInstruction::CBRRR(RegisterU8::D);
