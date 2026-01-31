@@ -1006,9 +1006,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = bit_operations::get_half_carry(prev, n.wrapping_add(1));
+      half_carry = bit_operations::get_half_carry_refactor(prev, &[n, 1]);
     } else {
-      half_carry = bit_operations::get_half_carry(prev, n);
+      half_carry = bit_operations::get_half_carry_refactor(prev, &[n]);
     }
 
     if half_carry {
@@ -1018,9 +1018,9 @@ impl Cpu {
     let carry;
 
     if c_flag {
-      carry = bit_operations::get_carry(prev, n.wrapping_add(1));
+      carry = bit_operations::get_carry_refactor(prev, &[n, 1]);
     } else {
-      carry = bit_operations::get_carry(prev, n);
+      carry = bit_operations::get_carry_refactor(prev, &[n]);
     }
 
     if carry {
@@ -1290,9 +1290,9 @@ impl Cpu {
     let half_carry;
 
     if c_flag {
-      half_carry = bit_operations::get_half_carry_sub(prev, n.wrapping_sub(1));
+      half_carry = bit_operations::get_half_carry_sub_refactor(prev, &[n, 1]);
     } else {
-      half_carry = bit_operations::get_half_carry_sub(prev, n);
+      half_carry = bit_operations::get_half_carry_sub_refactor(prev, &[n]);
     }
 
     if half_carry {
@@ -1302,9 +1302,9 @@ impl Cpu {
     let carry;
 
     if c_flag {
-      carry = bit_operations::get_carry_sub(prev, n.wrapping_sub(1));
+      carry = bit_operations::get_carry_sub_refactor(prev, &[n, 1]);
     } else {
-      carry = bit_operations::get_carry_sub(prev, n);
+      carry = bit_operations::get_carry_sub_refactor(prev, &[n]);
     }
 
     if carry {
@@ -1730,9 +1730,28 @@ impl Cpu {
 
     let low = memory.read(sp);
     let high = memory.read(sp + 1);
-    
-    self.registers.set_pair(rr, ((high as u16) << 8) | (low as u16));
-    
+
+    let is_AF_register = matches!(rr, RegisterPair::AF { .. });
+
+    if is_AF_register {
+      let (mut set_z_flag, mut set_n_flag, mut set_h_flag, mut set_c_flag) = (false, false, false, false);
+
+      let b7 = low & (1 << 7) != 0;
+      let b6 = low & (1 << 6) != 0;
+      let b5 = low & (1 << 5) != 0;
+      let b4 = low & (1 << 4) != 0;
+
+      set_z_flag = b7;
+      set_n_flag = b6;
+      set_h_flag = b5;
+      set_c_flag = b4;
+
+      self.registers.set_pair(rr, ((high as u16) << 8) | ((low & 0xF0) as u16));
+      Self::handle_flags(self, Some(set_z_flag), Some(set_n_flag), Some(set_h_flag), Some(set_c_flag));
+    } else {
+      self.registers.set_pair(rr, ((high as u16) << 8) | (low as u16));
+    }
+
     self.registers.sp += 2;
     self.registers.pc += 1;
   }

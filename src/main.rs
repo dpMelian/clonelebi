@@ -3,8 +3,9 @@ mod cpu;
 mod memory;
 mod tests;
 mod ppu;
+mod helpers;
 
-use std::fs::{self, OpenOptions};
+use std::fs::{self, remove_file, OpenOptions};
 use std::io::Result;
 use std::io::Write;
 
@@ -12,7 +13,7 @@ use cpu::cpu::Cpu;
 use memory::memory::Memory;
 
 fn load_rom_file() -> Vec<u8> {
-  let rom = fs::read("roms/06-ld r,r.gb")
+  let rom = fs::read("roms/01-special.gb")
     .expect("Should have been able to read the file");
 
   if rom.is_empty() {
@@ -41,14 +42,26 @@ fn main() {
   cpu.registers.l = 0x4D;
   cpu.registers.sp = 0xFFFE;
   cpu.registers.pc = 0x0100;
+  memory.write(0xFF06, 0b_0000_0000);
+  memory.write(0xFF07, 0b_0000_0100);
 
   let serial_output_address = 0xFF02;
   let mut serial_output_value = memory.read(serial_output_address);
 
-  while serial_output_value != 0x81 {
-    serial_output_value = memory.read(serial_output_address);
+  let _ = remove_file("./logs/cpu_log.txt");
+  let mut output_string = String::from("");
 
-    println!("PC: {:X}", cpu.registers.pc);
+  while true {
+    if serial_output_value == 0x81 {
+      output_string.push(memory.read(0xFF01) as char);
+      dbg!(&output_string);
+      
+      memory.write(serial_output_address, 0);
+    }
+    
+    serial_output_value = memory.read(serial_output_address);
+  
+    // dbg!(cpu.registers.pc);
 
     let contents = format!("A:{A:02X} F:{F:02X} B:{B:02X} C:{C:02X} D:{D:02X} E:{E:02X} H:{H:02X} L:{L:02X} SP:{SP:04X} PC:{PC:04X} PCMEM:{PCMEM0:02X},{PCMEM1:02X},{PCMEM2:02X},{PCMEM3:02X}\n",
       A = cpu.registers.a,
@@ -73,10 +86,6 @@ fn main() {
     }
 
     cpu.run_instruction(&mut memory);
-  }
-
-  if serial_output_value == 0x81 {
-    dbg!(memory.read(serial_output_address));
   }
 }
 
