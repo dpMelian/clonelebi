@@ -8,7 +8,7 @@ Clonelebi is a Game Boy emulator project currently in development.
 
 | Test                  	| Status 	|
 |-----------------------	|--------	|
-| 01-special            	| ❌      	|
+| 01-special            	| ✅      	|
 | 02-interrupts         	| ❌      	|
 | 03-op sp,hl           	| ✅      	|
 | 04-op r,imm           	| ❌      	|

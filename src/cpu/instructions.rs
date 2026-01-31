@@ -36,6 +36,7 @@ pub enum Instruction {
   Cpl,
   CpN,
   CpR(RegisterU8),
+  Daa,
   Dec(RegisterU8),
   DecHL,
   DecRR(Target),
@@ -148,6 +149,7 @@ impl Optable {
     table[0x24] = Instruction::IncR(RegisterU8::H);
     table[0x25] = Instruction::Dec(RegisterU8::H);
     table[0x26] = Instruction::LdNnN(RegisterU8::H);
+    table[0x27] = Instruction::Daa;
     table[0x28] = Instruction::JrCCE(Flag::Z, true);
     table[0x29] = Instruction::AddHLRR(Target::Pair(RegisterPair::HL));
     table[0x2A] = Instruction::LdAHLI;

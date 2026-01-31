@@ -77,6 +77,7 @@ impl Cpu {
         Instruction::Cpl => Self::cpl(self, memory),
         Instruction::CpN => Self::cp_n(self, memory),
         Instruction::CpR(r) => Self::cp_r(self, memory, *r),
+        Instruction::Daa => Self::daa(self, memory),
         Instruction::Dec(r) => Self::dec_n(self, memory, *r),
         Instruction::DecHL => Self::dec_hl(self, memory),
         Instruction::DecRR(rr) => Self::dec_rr(self, memory, *rr),
@@ -1731,9 +1732,9 @@ impl Cpu {
     let low = memory.read(sp);
     let high = memory.read(sp + 1);
 
-    let is_AF_register = matches!(rr, RegisterPair::AF { .. });
+    let is_af_register = matches!(rr, RegisterPair::AF { .. });
 
-    if is_AF_register {
+    if is_af_register {
       let (mut set_z_flag, mut set_n_flag, mut set_h_flag, mut set_c_flag) = (false, false, false, false);
 
       let b7 = low & (1 << 7) != 0;
@@ -1882,6 +1883,39 @@ impl Cpu {
     }
 
     Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
+  // Inspired by https://blog.ollien.com/posts/gb-daa/
+  fn daa(&mut self, _memory: &mut Memory) {
+    let mut offset = 0_u8;
+    let mut should_carry = false;
+    let mut result = 0_u8;
+
+    let a = self.registers.a;
+
+    let half_carry = self.registers.get_h_flag();
+    let carry = self.registers.get_c_flag();
+    let subtract = self.registers.get_n_flag();
+
+    if (!subtract && a & 0xF > 0x09 || half_carry) {
+      offset |= 0x06;
+    }
+
+    if (!subtract && a > 0x99 || carry) {
+      offset |= 0x60;
+      should_carry = true;
+    }
+
+    if !subtract {
+      result = a.wrapping_add(offset);
+    } else {
+      result = a.wrapping_sub(offset);
+    };
+
+    self.registers.a = result;
+    Self::handle_flags(self, Some((result == 0)), None, Some(false), Some(should_carry));
 
     self.registers.pc += 1;
   }
