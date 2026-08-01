@@ -27,7 +27,7 @@ pub struct Cpu {
   pub prefixed_optable: PrefixedOptable,
   pub cycles: u64,
   pub cycles_table: CycleTable,
-  interrupt_master_enable_flag: bool,
+  pub interrupt_master_enable_flag: bool,
 }
 
 impl Cpu {
@@ -1273,11 +1273,11 @@ impl Cpu {
     let c_flag = self.registers.get_c_flag();
     let prev = self.registers.a;
     let result;
-    let n = memory.read(pc);
+    let n = memory.read(pc + 1);
     let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     if c_flag {
-      result = self.registers.a.wrapping_sub(n.wrapping_sub(1));
+      result = self.registers.a.wrapping_sub(n).wrapping_sub(1);
     } else {
       result = self.registers.a.wrapping_sub(n);
     }
