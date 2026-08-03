@@ -14,7 +14,7 @@ Clonelebi is a Game Boy emulator project currently in development.
 | 04-op r,imm           	| ✅      	|
 | 05-op rp              	| ✅      	|
 | 06-ld r,r             	| ✅      	|
-| 07-jr,jp,call,ret,rst 	| ❌      	|
+| 07-jr,jp,call,ret,rst 	| ✅      	|
 | 08-misc instrs        	| ❌      	|
 | 09-op r,r             	| ❌      	|
 | 10-bit ops            	| ❌      	|

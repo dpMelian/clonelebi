@@ -70,7 +70,7 @@ impl Cpu {
         Instruction::AndHL => Self::and_hl(self, memory),
         Instruction::AndN => Self::and_n(self, memory),
         Instruction::AndR(r) => Self::and_r(self, memory, *r),
-        Instruction::Call => Self::call(self, memory),
+        Instruction::Call => Self::call_nn(self, memory),
         Instruction::CallCcNn(cc, set ) => Self::call_cc_nn(self, memory, *cc, *set),
         Instruction::Ccf => Self::ccf(self, memory),
         Instruction::CpHL => Self::cp_hl(self, memory),
@@ -464,7 +464,7 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
-  fn call(&mut self, memory: &mut Memory) {
+  fn call_nn(&mut self, memory: &mut Memory) {
     let pc = self.registers.pc;
     let sp = self.registers.sp;
 
@@ -629,6 +629,7 @@ impl Cpu {
 
   fn rst_n(&mut self, memory: &mut Memory, jump_address: RstAddress) {
     let sp = self.registers.sp;
+    self.registers.pc += 1;
     let split_u8_values = self.registers.pc.to_le_bytes();
 
     self.registers.sp -= 1;
@@ -1228,7 +1229,7 @@ impl Cpu {
     let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
     if c_flag {
-      result = a.wrapping_sub(data.wrapping_sub(1));
+      result = a.wrapping_sub(data).wrapping_sub(1);
     } else {
       result = a.wrapping_sub(data);
     }
@@ -1467,7 +1468,6 @@ impl Cpu {
 
   fn reti(&mut self, memory: &mut Memory) {
     let sp = self.registers.sp;
-    self.registers.pc += 1;
     self.registers.sp += 2;
 
     let low = memory.read(sp);
@@ -1480,12 +1480,10 @@ impl Cpu {
 
   pub fn ret(&mut self, memory: &mut Memory) {
     let sp = self.registers.sp;
-    self.registers.pc += 1;
+    self.registers.sp += 2;
 
     let low = memory.read(sp);
-    self.registers.sp += 1;
     let high = memory.read(sp + 1);
-    self.registers.sp += 1;
 
     self.registers.pc = ((high as u16) << 8) | (low as u16);
   }
