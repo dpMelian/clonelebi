@@ -55,6 +55,7 @@ impl Cpu {
         PrefixedInstruction::CBRRR(r) => Self::cb_rr_r(self, memory, *r),
         PrefixedInstruction::CBSetBHL(b) => Self::cb_set_b_hl(self, memory, *b),
         PrefixedInstruction::CBSRLR(r) => Self::cb_srl_r(self, memory, *r),
+        PrefixedInstruction::CBSlaR(r) => Self::cb_sla_r(self, memory, *r),
         PrefixedInstruction::Unimplemented => Self::unimplemented_instruction(self, memory),
       }
     } else {
@@ -237,8 +238,8 @@ impl Cpu {
   }
 
   fn unimplemented_instruction(&mut self, memory: &mut Memory) {
-    if memory.read(self.registers.pc) == 0xCB {
-      panic!("Prefixed instruction not yet implemented. Opcode: 0x{:02X}. PC: 0x{:02X}", memory.read(self.registers.pc + 1), self.registers.pc + 1);
+    if memory.read(self.registers.pc - 1) == 0xCB {
+      panic!("Prefixed instruction not yet implemented. Opcode: 0x{:02X}. PC: 0x{:02X}", memory.read(self.registers.pc), self.registers.pc);
     } else {
       panic!("Instruction not yet implemented. Opcode: 0x{:02X}. PC: 0x{:02X}", memory.read(self.registers.pc), self.registers.pc);
     }
@@ -1871,6 +1872,24 @@ impl Cpu {
     } else {
       self.registers[r] &= 0b1111_1110;
     }
+
+    if self.registers[r] == 0 {
+      set_z_flag = true;
+    }
+
+    if b7 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_sla_r(&mut self, memory: &mut Memory, r: RegisterU8) {
+    let b7 = self.registers[r] & (1 << 7) != 0;
+    self.registers[r] = self.registers[r] << 1;
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
 
     if self.registers[r] == 0 {
       set_z_flag = true;
