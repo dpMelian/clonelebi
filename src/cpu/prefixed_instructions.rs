@@ -9,6 +9,7 @@ pub enum PrefixedInstruction {
   CBSRLR(RegisterU8),
   CBSlaR(RegisterU8),
   CBSraR(RegisterU8),
+  CBSwapR(RegisterU8),
   Unimplemented,
 }
 
@@ -62,6 +63,13 @@ impl PrefixedOptable {
     table[0x2C] = PrefixedInstruction::CBSraR(RegisterU8::H);
     table[0x2D] = PrefixedInstruction::CBSraR(RegisterU8::L);
     table[0x2F] = PrefixedInstruction::CBSraR(RegisterU8::A);
+    table[0x30] = PrefixedInstruction::CBSwapR(RegisterU8::B);
+    table[0x31] = PrefixedInstruction::CBSwapR(RegisterU8::C);
+    table[0x32] = PrefixedInstruction::CBSwapR(RegisterU8::D);
+    table[0x33] = PrefixedInstruction::CBSwapR(RegisterU8::E);
+    table[0x34] = PrefixedInstruction::CBSwapR(RegisterU8::H);
+    table[0x35] = PrefixedInstruction::CBSwapR(RegisterU8::L);
+    table[0x37] = PrefixedInstruction::CBSwapR(RegisterU8::A);
     table[0x38] = PrefixedInstruction::CBSRLR(RegisterU8::B);
     table[0x39] = PrefixedInstruction::CBSRLR(RegisterU8::C);
     table[0x3A] = PrefixedInstruction::CBSRLR(RegisterU8::D);

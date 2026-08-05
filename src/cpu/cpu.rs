@@ -57,6 +57,7 @@ impl Cpu {
         PrefixedInstruction::CBSRLR(r) => Self::cb_srl_r(self, memory, *r),
         PrefixedInstruction::CBSlaR(r) => Self::cb_sla_r(self, memory, *r),
         PrefixedInstruction::CBSraR(r) => Self::cb_sra_r(self, memory, *r),
+        PrefixedInstruction::CBSwapR(r) => Self::cb_swap_r(self, memory, *r),
         PrefixedInstruction::Unimplemented => Self::unimplemented_instruction(self, memory),
       }
     } else {
@@ -1906,8 +1907,9 @@ impl Cpu {
   }
 
   fn cb_sra_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let b7 = self.registers[r] & (1 << 7) != 0;
     let b0 = self.registers[r] & (1 << 0) != 0;
-    self.registers[r] = self.registers[r] >> 1;
+    self.registers[r] = self.registers[r] >> 1 | (b7 as u8) << 7;
     let (mut set_z_flag, mut set_c_flag) = (false, false);
 
     if self.registers[r] == 0 {
@@ -1919,6 +1921,22 @@ impl Cpu {
     }
 
     Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_swap_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
+    let prev = self.registers[r];
+    let result = prev << 4 | prev >> 4;
+    self.registers[r] = result;
+
+    let mut set_z_flag = false;
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
 
     self.registers.pc += 1;
   }
