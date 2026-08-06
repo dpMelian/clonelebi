@@ -58,6 +58,9 @@ impl Cpu {
         PrefixedInstruction::CBSlaR(r) => Self::cb_sla_r(self, memory, *r),
         PrefixedInstruction::CBSraR(r) => Self::cb_sra_r(self, memory, *r),
         PrefixedInstruction::CBSwapR(r) => Self::cb_swap_r(self, memory, *r),
+        PrefixedInstruction::CBBitBR(b, r) => Self::cb_bit_b_r(self, memory, *b, *r),
+        PrefixedInstruction::CBResBR(b, r) => Self::cb_res_b_r(self, memory, *b, *r),
+        PrefixedInstruction::CBSetBR(b, r) => Self::cb_set_b_r(self, memory, *b, *r),
         PrefixedInstruction::Unimplemented => Self::unimplemented_instruction(self, memory),
       }
     } else {
@@ -1937,6 +1940,33 @@ impl Cpu {
     }
 
     Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_bit_b_r(&mut self, _memory: &mut Memory, b: i32, r: RegisterU8) {
+    let bit = self.registers[r] & (1 << b) != 0;
+    let mut set_z_flag = false;
+
+    if !bit {
+      set_z_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(true), None);
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_res_b_r(&mut self, _memory: &mut Memory, b: i32, r: RegisterU8) {
+    let mut mask = 0b_1111_1111;
+    mask = mask ^ (1 << b);
+    self.registers[r] = self.registers[r] & mask;
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_set_b_r(&mut self, _memory: &mut Memory, b: i32, r: RegisterU8) {
+    self.registers[r] = self.registers[r] | (1 << b);
 
     self.registers.pc += 1;
   }
