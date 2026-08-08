@@ -49,17 +49,27 @@ impl Cpu {
       let cb_opcode = memory.read(self.registers.pc + 1);
       self.registers.pc += 1;
       match &self.prefixed_optable.prefixed_optable[cb_opcode as usize] {
-        PrefixedInstruction::CBRLCR(r) => Self::cb_rlc_r(self, memory, *r),
+        PrefixedInstruction::CBRlcR(r) => Self::cb_rlc_r(self, memory, *r),
+        PrefixedInstruction::CBRlcHL() => Self::cb_rlc_hl(self, memory),
         PrefixedInstruction::CBRlR(r) => Self::cb_rl_r(self, memory, *r),
-        PrefixedInstruction::CBRRCR(r) => Self::cb_rrc_r(self, memory, *r),
-        PrefixedInstruction::CBRRR(r) => Self::cb_rr_r(self, memory, *r),
+        PrefixedInstruction::CBRlHL() => Self::cb_rl_hl(self, memory),
+        PrefixedInstruction::CBRrcR(r) => Self::cb_rrc_r(self, memory, *r),
+        PrefixedInstruction::CBRrcHL() => Self::cb_rrc_hl(self, memory),
+        PrefixedInstruction::CBRrR(r) => Self::cb_rr_r(self, memory, *r),
+        PrefixedInstruction::CBRrHL() => Self::cb_rr_hl(self, memory),
         PrefixedInstruction::CBSetBHL(b) => Self::cb_set_b_hl(self, memory, *b),
-        PrefixedInstruction::CBSRLR(r) => Self::cb_srl_r(self, memory, *r),
+        PrefixedInstruction::CBSrlR(r) => Self::cb_srl_r(self, memory, *r),
+        PrefixedInstruction::CBSrlHL() => Self::cb_srl_hl(self, memory),
         PrefixedInstruction::CBSlaR(r) => Self::cb_sla_r(self, memory, *r),
+        PrefixedInstruction::CBSlaHL() => Self::cb_sla_hl(self, memory),
         PrefixedInstruction::CBSraR(r) => Self::cb_sra_r(self, memory, *r),
+        PrefixedInstruction::CBSraHL() => Self::cb_sra_hl(self, memory),
         PrefixedInstruction::CBSwapR(r) => Self::cb_swap_r(self, memory, *r),
+        PrefixedInstruction::CBSwapHL() => Self::cb_swap_hl(self, memory),
         PrefixedInstruction::CBBitBR(b, r) => Self::cb_bit_b_r(self, memory, *b, *r),
+        PrefixedInstruction::CBBitBHL(b) => Self::cb_bit_b_hl(self, memory, *b),
         PrefixedInstruction::CBResBR(b, r) => Self::cb_res_b_r(self, memory, *b, *r),
+        PrefixedInstruction::CBResHL(b) => Self::cb_res_b_hl(self, memory, *b),
         PrefixedInstruction::CBSetBR(b, r) => Self::cb_set_b_r(self, memory, *b, *r),
         PrefixedInstruction::Unimplemented => Self::unimplemented_instruction(self, memory),
       }
@@ -1227,10 +1237,10 @@ impl Cpu {
   }
 
   fn sbc_hl(&mut self, memory: &mut Memory) {
-    let hl = self.registers.get_pair(RegisterPair::HL);
+    let data = self.registers.get_pair(RegisterPair::HL);
     let a = self.registers.a;
     let c_flag = self.registers.get_c_flag();
-    let data = memory.read(hl);
+    let data = memory.read(data);
     let result;
     let (mut set_z_flag, mut set_h_flag, mut set_c_flag) = (false, false, false);
 
@@ -1261,9 +1271,9 @@ impl Cpu {
     let carry;
 
     if c_flag {
-      carry = bit_operations::get_carry_sub(a, data.wrapping_sub(1));
+      carry = bit_operations::get_carry_sub_refactor(a, &[data, 1]);
     } else {
-      carry = bit_operations::get_carry_sub(a, data);
+      carry = bit_operations::get_carry_sub_refactor(a, &[data]);
     }
 
     if carry {
@@ -1786,12 +1796,61 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn cb_rlc_hl(&mut self, memory: &mut Memory) {
+    let mut data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let b7 = data & (1 << 7) != 0;
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+
+    data = data.rotate_left(1);
+
+    if b7 {
+      data |= 0b0000_0001;
+    } else {
+      data &= 0b1111_1110;
+    }
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), data);
+
+    if data == 0 {
+      set_z_flag = true;
+    }
+
+    if b7 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
   fn cb_srl_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let b0 = self.registers[r] & (1) != 0;
     let (mut set_z_flag, mut set_c_flag) = (false, false);
     self.registers[r] = self.registers[r] >> 1;
 
     if self.registers[r] == 0 {
+      set_z_flag = true;
+    }
+
+    if b0 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_srl_hl(&mut self, memory: &mut Memory) {
+    let mut data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let b0 = data & (1) != 0;
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+    data = data >> 1;
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), data);
+
+    if data == 0 {
       set_z_flag = true;
     }
 
@@ -1826,6 +1885,34 @@ impl Cpu {
 
     Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
     
+    self.registers.pc += 1;
+  }
+
+  fn cb_rr_hl(&mut self, memory: &mut Memory) {
+    let mut data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let b0 = data & (1) != 0;
+    let c_flag = self.registers.get_c_flag();
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+    data = data.rotate_right(1);
+
+    if c_flag {
+      data |= 0b1000_0000;
+    } else {
+      data &= 0b0111_1111;
+    }
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), data);
+
+    if data == 0 {
+      set_z_flag = true;
+    }
+
+    if b0 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
     self.registers.pc += 1;
   }
 
@@ -1865,6 +1952,34 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn cb_rrc_hl(&mut self, memory: &mut Memory) {
+    let mut data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let b0 = data & (1) != 0;
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+
+    data = data.rotate_right(1);
+
+    if b0 {
+      data |= 0b1000_0000;
+    } else {
+      data &= 0b0111_1111;
+    }
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), data);
+
+    if data == 0 {
+      set_z_flag = true;
+    }
+
+    if b0 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
   fn cb_rl_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let b7 = self.registers[r] & (1 << 7) != 0;
     let c_flag = self.registers.get_c_flag();
@@ -1891,12 +2006,62 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn cb_rl_hl(&mut self, memory: &mut Memory) {
+    let mut data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let b7 = data & (1 << 7) != 0;
+    let c_flag = self.registers.get_c_flag();
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+
+    data = data.rotate_left(1);
+
+    if c_flag {
+      data |= 0b0000_0001;
+    } else {
+      data &= 0b1111_1110;
+    }
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), data);
+
+    if data == 0 {
+      set_z_flag = true;
+    }
+
+    if b7 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
   fn cb_sla_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let b7 = self.registers[r] & (1 << 7) != 0;
     self.registers[r] = self.registers[r] << 1;
     let (mut set_z_flag, mut set_c_flag) = (false, false);
 
     if self.registers[r] == 0 {
+      set_z_flag = true;
+    }
+
+    if b7 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_sla_hl(&mut self, memory: &mut Memory) {
+    let mut data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let b7 = data & (1 << 7) != 0;
+    data = data << 1;
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), data);
+
+    if data == 0 {
       set_z_flag = true;
     }
 
@@ -1928,10 +2093,48 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn cb_sra_hl(&mut self, memory: &mut Memory) {
+    let mut data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let b7 = data & (1 << 7) != 0;
+    let b0 = data & (1 << 0) != 0;
+    data = data >> 1 | (b7 as u8) << 7;
+    let (mut set_z_flag, mut set_c_flag) = (false, false);
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), data);
+
+    if data == 0 {
+      set_z_flag = true;
+    }
+
+    if b0 {
+      set_c_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(set_c_flag));
+
+    self.registers.pc += 1;
+  }
+
   fn cb_swap_r(&mut self, _memory: &mut Memory, r: RegisterU8) {
     let prev = self.registers[r];
     let result = prev << 4 | prev >> 4;
     self.registers[r] = result;
+
+    let mut set_z_flag = false;
+
+    if result == 0 {
+      set_z_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(false), Some(false));
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_swap_hl(&mut self, memory: &mut Memory) {
+    let data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let result = data << 4 | data >> 4;
+    memory.write(self.registers.get_pair(RegisterPair::HL), result);
 
     let mut set_z_flag = false;
 
@@ -1957,10 +2160,35 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
+  fn cb_bit_b_hl(&mut self, memory: &mut Memory, b: i32) {
+    let data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let bit = data & (1 << b) != 0;
+    let mut set_z_flag = false;
+
+    if !bit {
+      set_z_flag = true;
+    }
+
+    Self::handle_flags(self, Some(set_z_flag), Some(false), Some(true), None);
+
+    self.registers.pc += 1;
+  }
+
   fn cb_res_b_r(&mut self, _memory: &mut Memory, b: i32, r: RegisterU8) {
     let mut mask = 0b_1111_1111;
     mask = mask ^ (1 << b);
     self.registers[r] = self.registers[r] & mask;
+
+    self.registers.pc += 1;
+  }
+
+  fn cb_res_b_hl(&mut self, memory: &mut Memory, b: i32) {
+    let mut data = memory.read(self.registers.get_pair(RegisterPair::HL));
+    let mut mask = 0b_1111_1111;
+    mask = mask ^ (1 << b);
+    data = data & mask;
+
+    memory.write(self.registers.get_pair(RegisterPair::HL), data);
 
     self.registers.pc += 1;
   }
