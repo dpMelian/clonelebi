@@ -1,9 +1,9 @@
 use cpu::cpu::Cpu;
 use memory::memory::Memory;
 
-const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
-const TIMA_ADDRESS: u16 = 0xFF05;
-const TMA_ADDRESS: u16 = 0xFF06;
+pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
+pub const TIMA_ADDRESS: u16 = 0xFF05;
+pub const TMA_ADDRESS: u16 = 0xFF06;
 
 pub fn handle_interrupt(cpu: &mut Cpu, memory: &mut Memory, interrupt_enable: u8, interrupt_flag: u8) {
   let sp = cpu.registers.sp;
@@ -16,7 +16,7 @@ pub fn handle_interrupt(cpu: &mut Cpu, memory: &mut Memory, interrupt_enable: u8
 
   // VBlank
   if ((interrupt_enable & 0b_0000_0001) == 0b_0000_0001) & ((interrupt_flag & 0b_0000_0001) == 0b_0000_0001) {
-    // TODO
+    cpu.registers.pc = 0x40;
     memory.write(INTERRUPT_FLAG_ADDRESS, interrupt_flag & 0b_1111_1110);
   }
 
@@ -48,5 +48,5 @@ pub fn handle_interrupt(cpu: &mut Cpu, memory: &mut Memory, interrupt_enable: u8
 
   cpu.cycles += 5; // The entire process lasts 5 M-cycles
 
-  cpu.ret(memory);
+  cpu.reti(memory);
 }

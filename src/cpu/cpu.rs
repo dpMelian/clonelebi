@@ -2,7 +2,7 @@ use cpu::instructions::CycleTable;
 use cpu::instructions::Instruction;
 use cpu::instructions::Optable;
 use cpu::instructions::RstAddress;
-use cpu::interrupt_handler::handle_interrupt;
+use cpu::interrupt_handler::{handle_interrupt, INTERRUPT_FLAG_ADDRESS, TIMA_ADDRESS, TMA_ADDRESS};
 use cpu::prefixed_instructions::PrefixedInstruction;
 use cpu::prefixed_instructions::PrefixedOptable;
 use cpu::registers::Flag;
@@ -18,9 +18,6 @@ pub const MASTER_CLOCK_SPEED: u64 = 4194304; // Hz
 pub const DIV_INCREMENT_RATE: u64 = 16384; // Hz
 pub const TAC_CLOCK_SELECT: [u64; 4] = [4096, 262144, 65536, 16384];
 
-static mut DIV_INTERNAL_COUNTER: u64 = 0;
-static mut TIMA_INTERNAL_COUNTER: u64 = 0;
-
 pub struct Cpu {
   pub registers: Registers,
   pub optable: Optable,
@@ -28,6 +25,8 @@ pub struct Cpu {
   pub cycles: u64,
   pub cycles_table: CycleTable,
   pub interrupt_master_enable_flag: bool,
+  pub div_internal_counter: u64,
+  pub tima_internal_counter: u64,
 }
 
 impl Cpu {
@@ -39,6 +38,8 @@ impl Cpu {
       cycles_table: CycleTable::new(),
       cycles: 0,
       interrupt_master_enable_flag: false,
+      div_internal_counter: 0,
+      tima_internal_counter: 0,
     }
   }
 
@@ -161,8 +162,13 @@ impl Cpu {
     }
 
     self.cycles += self.cycles_table.cycle_table[opcode as usize];
+    self.div_internal_counter += self.cycles_table.cycle_table[opcode as usize];
+    self.tima_internal_counter += self.cycles_table.cycle_table[opcode as usize] * 4;
 
-    unsafe { TIMA_INTERNAL_COUNTER += self.cycles_table.cycle_table[opcode as usize] };
+    while self.div_internal_counter >= (MASTER_CLOCK_SPEED / DIV_INCREMENT_RATE) {
+      self.div_internal_counter = self.div_internal_counter.wrapping_sub(MASTER_CLOCK_SPEED / DIV_INCREMENT_RATE);
+      self.registers.div = self.registers.div.wrapping_add(1);
+    }
 
     // Increment TIMA if TAC is enabled
     if (memory.read(0xFF07) & 0b_0000_0100) == 0b_0000_0100 {
@@ -171,27 +177,59 @@ impl Cpu {
 
       match tac_clock_select {
         0b_00 => {
-          while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) / 4) {
+          while self.tima_internal_counter >= (MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) {
             incremented_value = self.registers.tima.wrapping_add(1).into();
-            unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]) / 4); };
+            memory.write(TIMA_ADDRESS, self.registers.tima);
+
+            // Check TIMA for overflow
+            if memory.read(TIMA_ADDRESS) == 0x00 {
+              memory.write(INTERRUPT_FLAG_ADDRESS, memory.read(INTERRUPT_FLAG_ADDRESS) | 0b_0000_0100);
+              memory.write(TIMA_ADDRESS, memory.read(TMA_ADDRESS));
+            }
+
+            self.tima_internal_counter = self.tima_internal_counter.wrapping_sub(MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]);
           }
         },
         0b_01 => {
-          while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) / 4) {
+          while self.tima_internal_counter >= (MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) {
             incremented_value = self.registers.tima.wrapping_add(1).into();
-            unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[1]) / 4); };
+            memory.write(TIMA_ADDRESS, self.registers.tima);
+
+            // Check TIMA for overflow
+            if memory.read(TIMA_ADDRESS) == 0x00 {
+              memory.write(INTERRUPT_FLAG_ADDRESS, memory.read(INTERRUPT_FLAG_ADDRESS) | 0b_0000_0100);
+              memory.write(TIMA_ADDRESS, memory.read(TMA_ADDRESS));
+            }
+
+            self.tima_internal_counter = self.tima_internal_counter.wrapping_sub(MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]);
           }
         },
         0b_10 => {
-          while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) / 4) {
+          while self.tima_internal_counter >= (MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) {
             incremented_value = self.registers.tima.wrapping_add(1).into();
-            unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[2]) / 4); };
+            memory.write(TIMA_ADDRESS, self.registers.tima);
+
+            // Check TIMA for overflow
+            if memory.read(TIMA_ADDRESS) == 0x00 {
+              memory.write(INTERRUPT_FLAG_ADDRESS, memory.read(INTERRUPT_FLAG_ADDRESS) | 0b_0000_0100);
+              memory.write(TIMA_ADDRESS, memory.read(TMA_ADDRESS));
+            }
+
+            self.tima_internal_counter = self.tima_internal_counter.wrapping_sub(MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]);
           }
         },
         0b_11 => {
-          while unsafe { TIMA_INTERNAL_COUNTER } >= ((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) / 4) {
+          while self.tima_internal_counter >= (MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) {
             incremented_value = self.registers.tima.wrapping_add(1).into();
-            unsafe { TIMA_INTERNAL_COUNTER = TIMA_INTERNAL_COUNTER.wrapping_sub((MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[3]) / 4); };
+            memory.write(TIMA_ADDRESS, self.registers.tima);
+
+            // Check TIMA for overflow
+            if memory.read(TIMA_ADDRESS) == 0x00 {
+              memory.write(INTERRUPT_FLAG_ADDRESS, memory.read(INTERRUPT_FLAG_ADDRESS) | 0b_0000_0100);
+              memory.write(TIMA_ADDRESS, memory.read(TMA_ADDRESS));
+            }
+
+            self.tima_internal_counter = self.tima_internal_counter.wrapping_sub(MASTER_CLOCK_SPEED / TAC_CLOCK_SELECT[0]);
           }
         },
         _ => {
@@ -206,15 +244,8 @@ impl Cpu {
         memory.write(0xFF0F, interrupt_flag);
       }
 
-      self.registers.tima = incremented_value.to_le_bytes()[0];
-      memory.write(0xFF05, incremented_value.to_le_bytes()[0]);
-    }
-
-    unsafe { DIV_INTERNAL_COUNTER += self.cycles_table.cycle_table[opcode as usize] };
-
-    while unsafe { DIV_INTERNAL_COUNTER } >= (MASTER_CLOCK_SPEED / DIV_INCREMENT_RATE) {
-      self.registers.div = self.registers.div.wrapping_add(1);
-      unsafe { DIV_INTERNAL_COUNTER = DIV_INTERNAL_COUNTER.wrapping_sub(MASTER_CLOCK_SPEED / DIV_INCREMENT_RATE); };
+      // self.registers.tima = incremented_value.to_le_bytes()[0];
+      // memory.write(TIMA_ADDRESS, incremented_value.to_le_bytes()[0]);
     }
 
     let interrupt_flag = memory.read(0xFF0F);
@@ -1482,7 +1513,7 @@ impl Cpu {
     self.registers.pc += 1;
   }
 
-  fn reti(&mut self, memory: &mut Memory) {
+  pub fn reti(&mut self, memory: &mut Memory) {
     let sp = self.registers.sp;
     self.registers.sp += 2;
 
@@ -1494,7 +1525,7 @@ impl Cpu {
     self.interrupt_master_enable_flag = true;
   }
 
-  pub fn ret(&mut self, memory: &mut Memory) {
+  fn ret(&mut self, memory: &mut Memory) {
     let sp = self.registers.sp;
     self.registers.sp += 2;
 
